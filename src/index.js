@@ -12,10 +12,11 @@ const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 
 app.use(cors({
-  origin: '*',
-  credentials: true
+    origin: 'https://vyaparos-frontend.vercel.app',
+    credentials: true
 }));
-app.options('*', cors());
+
+app.options('https://vyaparos-frontend.vercel.app', cors());
 app.use(express.json());
 
 const authRoutes = require('./routes/authRoutes');
