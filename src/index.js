@@ -76,37 +76,6 @@ const startServer = async () => {
         `);
         console.log('[SYNC] Cleanup complete.');
 
-        // Wipe specific user for re-onboarding from SQLite
-        console.log('[SYNC] Removing test user data for 9554140800 & 7905849970...');
-        try {
-            await sequelize.query(`
-                DELETE FROM users
-                WHERE email='singh.amitk82@gmail.com' OR phone='9554140800' OR phone='7905849970'
-            `);
-            console.log('[SYNC] Test user data removed successfully.');
-        } catch(err) {
-            console.warn('[SYNC] Notice: ', err.message);
-        }
-
-        // Wipe specific users from Firebase Authentication
-        const admin = require('./config/firebaseAdmin');
-        try {
-            const phones = ['+919554140800', '+917905849970'];
-            for (const phone of phones) {
-                try {
-                    const userRecord = await admin.auth().getUserByPhoneNumber(phone);
-                    await admin.auth().deleteUser(userRecord.uid);
-                    console.log(`[SYNC] Firebase user ${phone} removed successfully.`);
-                } catch (e) {
-                    if (e.code !== 'auth/user-not-found') {
-                        console.warn(`[SYNC] Notice for Firebase auth deletion of ${phone}: `, e.message);
-                    }
-                }
-            }
-        } catch(err) {
-            console.warn('[SYNC] Firebase Admin user deletion notice: ', err.message);
-        }
-
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
             console.log('Backend boot complete.');
