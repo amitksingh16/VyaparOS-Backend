@@ -9,7 +9,7 @@ dotenv.config();
 require('./config/firebaseAdmin');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 8080;
 
 app.use(cors({
   origin: '*',
@@ -54,31 +54,41 @@ cron.schedule('0 0 * * *', async () => {
 
 const startServer = async () => {
     try {
-        const { sequelize } = require('./config/db');
-        
+        const { sequelize, databaseStorage } = require('./config/db');
+
         // Ensure connection is established
         await sequelize.authenticate();
         console.log('[DB] Connection established successfully.');
-        
+        console.log(`[DB] SQLite storage path: ${databaseStorage}`);
+
         // Force table alteration/creation temporarily for deployment
         console.log('[DB] Syncing models to database...');
         await sequelize.sync({ alter: true });
-        
+
         // Deep Database Sync: Cleanup orphaned staff_client_assignments
         console.log('[SYNC] Cleaning up orphaned client assignments...');
         await sequelize.query(`
-            DELETE FROM staff_client_assignments 
+            DELETE FROM staff_client_assignments
             WHERE business_id NOT IN (SELECT id FROM businesses)
         `);
         console.log('[SYNC] Cleanup complete.');
 
-        app.listen(PORT, () => {
+        const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
-            console.log("✅ Backend running without Firebase (Step 1 clean)");
+            console.log('Backend boot complete.');
         });
+
+        return server;
     } catch (err) {
         console.error('Failed to start server:', err);
+        throw err;
     }
 };
 
-startServer();
+if (require.main === module) {
+    startServer().catch(() => {
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { app, startServer };
