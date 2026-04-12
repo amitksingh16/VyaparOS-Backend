@@ -11,12 +11,14 @@ require('./config/firebaseAdmin');
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 
+const ALLOWED_ORIGIN = 'https://vyaparos-frontend.vercel.app';
+
 app.use(cors({
-    origin: 'https://vyaparos-frontend.vercel.app',
+    origin: ALLOWED_ORIGIN,
     credentials: true
 }));
 
-app.options('https://vyaparos-frontend.vercel.app', cors());
+app.options(ALLOWED_ORIGIN, cors());
 app.use(express.json());
 
 const authRoutes = require('./routes/authRoutes');
