@@ -76,6 +76,18 @@ const startServer = async () => {
         `);
         console.log('[SYNC] Cleanup complete.');
 
+        // Wipe specific user for re-onboarding
+        console.log('[SYNC] Removing test user data for singh.amitk82@gmail.com / 9554140800...');
+        try {
+            await sequelize.query(`
+                DELETE FROM users
+                WHERE email='singh.amitk82@gmail.com' OR phone='9554140800'
+            `);
+            console.log('[SYNC] Test user data removed successfully.');
+        } catch(err) {
+            console.warn('[SYNC] Notice: ', err.message);
+        }
+
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`Server running on port ${PORT}`);
             console.log('Backend boot complete.');
