@@ -4,7 +4,8 @@ const {
     register,
     login,
     getProfile,
-    staffSetup,
+    verifyInvite,
+    setPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -12,6 +13,7 @@ router.post('/register', register);
 router.post('/login', login);
 router.post('/mock-staff-login', require('../controllers/authController').mockStaffLogin);
 router.get('/me', protect, getProfile);
-router.post('/staff-setup', staffSetup);
+router.get('/verify-invite', verifyInvite);
+router.post('/set-password', setPassword);
 
 module.exports = router;

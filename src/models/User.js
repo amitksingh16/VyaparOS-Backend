@@ -43,6 +43,10 @@ const User = sequelize.define('User', {
         allowNull: true,
         unique: true,
     },
+    invite_expiry: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
     invite_status: {
         type: DataTypes.ENUM('invited', 'active'),
         defaultValue: 'active',

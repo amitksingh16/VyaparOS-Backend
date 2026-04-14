@@ -1,5 +1,6 @@
 const { User, ActivityLog } = require('../models');
 const admin = require("../config/firebaseAdmin");
+const bcrypt = require('bcryptjs');
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -134,8 +135,45 @@ const getProfile = async (req, res) => {
     }
 };
 
+// @desc    Verify if invite token is valid
+// @route   GET /api/auth/verify-invite
+// @access  Public
+const verifyInvite = async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            return res.status(400).json({ message: 'Token is required' });
+        }
+
+        const user = await User.findOne({ where: { invite_token: token } });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired invitation token' });
+        }
+
+        if (user.invite_expiry && new Date() > new Date(user.invite_expiry)) {
+            return res.status(400).json({ message: 'Invitation token has expired.' });
+        }
+
+        res.status(200).json({
+            message: 'Token is valid',
+            user: {
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Verify invite error:', error);
+        res.status(500).json({ message: 'Server error during token verification' });
+    }
+};
+
 // @desc    Setup staff account from invite token
-const staffSetup = async (req, res) => {
+// @route   POST /api/auth/set-password
+// @access  Public
+const setPassword = async (req, res) => {
     try {
         const { token, password } = req.body;
 
@@ -149,11 +187,17 @@ const staffSetup = async (req, res) => {
             return res.status(400).json({ message: 'Invalid or expired invitation token' });
         }
 
-        user.password = password;
+        if (user.invite_expiry && new Date() > new Date(user.invite_expiry)) {
+            return res.status(400).json({ message: 'Invitation token has expired.' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
         user.invite_status = 'active';
         user.setup_completed = true;
         user.is_verified = true;
         user.invite_token = null;
+        user.invite_expiry = null;
 
         await user.save();
 
@@ -210,6 +254,7 @@ module.exports = {
     register,
     login,
     getProfile,
-    staffSetup,
+    verifyInvite,
+    setPassword,
     mockStaffLogin
 };

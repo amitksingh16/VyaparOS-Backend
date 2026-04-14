@@ -61,38 +61,58 @@ const getStaffMembers = async (req, res) => {
 
 const inviteStaffMember = async (req, res) => {
     try {
+        console.log('Invite Request Body:', req.body);
         const caId = req.user.id;
-        const { name, email, phone, role, assigned_client_ids, origin } = req.body;
+        const { name, email, mobile, phone, role, assigned_client_ids } = req.body;
+        
+        const contactMobile = mobile || phone;
 
-        if (!name || !email || !phone || !role) {
-            return res.status(400).json({ message: 'Name, email, phone, and role are required' });
+        if (!name || !email || !contactMobile || !role) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Name, email, mobile, and role are required' 
+            });
         }
 
         // Check if user already exists
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
-            return res.status(400).json({ message: 'User with this email already exists' });
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User with this email already exists' 
+            });
         }
 
-        const caFirmName = req.user.name || 'Your CA Firm';
-        
-        const expires_at = new Date();
-        expires_at.setHours(expires_at.getHours() + 48); // 48 hours validity
+        const existingPhoneUser = await User.findOne({ where: { phone: contactMobile } });
+        if (existingPhoneUser) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User with this mobile already exists' 
+            });
+        }
 
-        const newInvitation = await Invitation.create({
+        const crypto = require('crypto');
+        const invite_token = crypto.randomBytes(32).toString('hex');
+
+        const invite_expiry = new Date();
+        invite_expiry.setHours(invite_expiry.getHours() + 24); // 24 hours validity
+
+        const newUser = await User.create({
+            name,
             email,
-            phone,
+            phone: contactMobile,
             role,
-            assigned_clients_json: JSON.stringify(assigned_client_ids || []),
-            status: 'pending',
-            expires_at,
-            ca_id: caId,
-            firm_name: caFirmName
+            parent_ca_id: caId,
+            invite_status: 'invited',
+            password: null,
+            invite_token,
+            invite_expiry
         });
 
-        // Simulating sending a professional email
-        const baseOrigin = origin || `${req.protocol}://${req.get('host')}`;
-        const setupLink = `${baseOrigin}/invite/${newInvitation.token}`;
+        // Log the link
+        const caFirmName = req.user.name || 'Your CA Firm';
+        const baseOrigin = req.body.origin || `${req.protocol}://${req.get('host')}`;
+        const setupLink = `${baseOrigin}/setup-password?token=${invite_token}`;
 
         console.log(`
 =========================================================
@@ -102,22 +122,31 @@ Subject: Invitation to join ${caFirmName} on VyaparOS
 Hello ${name},
 
 You have been invited to join ${caFirmName} as a ${role === 'ca_staff' ? 'Staff Member' : 'Article Assistant'}.
-VyaparOS is our central compliance and practice management platform.
-
 Please click the link below to set your password and access your dashboard.
-Your dashboard will be restricted to only the clients assigned to you.
-This link will expire in 48 hours.
+This link will expire in 24 hours.
 
 Set Up Account: ${setupLink}
-
-Welcome to the team!
 =========================================================
 `);
 
-        res.status(201).json({ message: 'Staff member invited successfully', invitation: newInvitation });
+        if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
+            const newAssignments = assigned_client_ids.map(bId => ({
+                staff_id: newUser.id,
+                business_id: bId
+            }));
+            await StaffClientAssignment.bulkCreate(newAssignments);
+        }
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Invitation created successfully' 
+        });
     } catch (err) {
-        console.error('Error inviting staff:', err);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error inviting staff:', err.message);
+        res.status(500).json({ 
+            success: false, 
+            message: err.message 
+        });
     }
 };
 
