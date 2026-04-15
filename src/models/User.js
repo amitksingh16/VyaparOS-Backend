@@ -59,6 +59,14 @@ const User = sequelize.define('User', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
     },
+    firm_id: {
+        type: DataTypes.UUID,
+        allowNull: true,
+    },
+    is_firm_setup_complete: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
 }, {
     timestamps: true,
     tableName: 'users',

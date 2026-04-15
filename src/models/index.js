@@ -11,8 +11,17 @@ const StaffClientAssignment = require('./StaffClientAssignment');
 const ActivityLog = require('./ActivityLog');
 const Invitation = require('./Invitation');
 const ClientMeta = require('./ClientMeta');
+const Firm = require('./Firm');
 
 // Relationships
+
+// Firm & User (Owner)
+Firm.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
+User.hasOne(Firm, { foreignKey: 'owner_id', as: 'owned_firm' }); // A user owns a firm
+
+// User & Firm (Firm membership)
+User.belongsTo(Firm, { foreignKey: 'firm_id', as: 'firm' });
+Firm.hasMany(User, { foreignKey: 'firm_id', as: 'members' });
 
 // Business & ClientMeta (Settings)
 Business.hasOne(ClientMeta, { foreignKey: 'business_id', as: 'client_meta' });
@@ -104,5 +113,6 @@ module.exports = {
     NotificationLog,
     StaffClientAssignment,
     Invitation,
-    ClientMeta
+    ClientMeta,
+    Firm
 };
