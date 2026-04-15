@@ -34,6 +34,14 @@ const Firm = sequelize.define('Firm', {
     owner_id: {
         type: DataTypes.UUID,
         allowNull: false,
+    },
+    estimated_clients: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    portfolio_composition: {
+        type: DataTypes.JSON,
+        allowNull: true,
     }
 }, {
     timestamps: true,

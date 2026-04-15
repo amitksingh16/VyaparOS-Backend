@@ -1,4 +1,4 @@
-const { CAClient, StaffClientAssignment, Business, ComplianceItem, User, ActivityLog, NotificationLog, Document } = require('../models');
+const { CAClient, StaffClientAssignment, Business, ComplianceItem, User, ActivityLog, NotificationLog, Document, Firm } = require('../models');
 const { Op } = require('sequelize');
 const { generateInitialCompliances } = require('./complianceController');
 const { runDailyReminders } = require('../utils/reminderEngine');
@@ -274,6 +274,8 @@ const completeSetup = async (req, res) => {
     try {
         const {
             firm_name,
+            estimated_clients,
+            portfolio_composition,
             teamMembers,
             business_name,
             email,
@@ -306,8 +308,30 @@ const completeSetup = async (req, res) => {
         
         caUserId = caUser.id; // ensure caUserId is correctly set to DB ID
 
+        // Create or Update Firm Record
+        let firm = await Firm.findOne({ where: { owner_id: caUserId } });
+        if (firm) {
+            firm.name = firm_name;
+            firm.estimated_clients = estimated_clients || null;
+            // Handle portfolio_composition as array or object properly mapped to JSON
+            firm.portfolio_composition = portfolio_composition || null;
+            await firm.save();
+        } else {
+            firm = await Firm.create({
+                name: firm_name,
+                email: caUser.email, // fallback email
+                phone: caUser.phone, // fallback phone
+                owner_id: caUserId,
+                estimated_clients: estimated_clients || null,
+                portfolio_composition: portfolio_composition || null
+            });
+        }
+
+        // Update User
         caUser.name = firm_name;
+        caUser.firm_id = firm.id;
         caUser.setup_completed = true;
+        caUser.is_firm_setup_complete = true;
         await caUser.save();
 
         // 2. Process Initial Client if provided
@@ -398,7 +422,17 @@ Welcome to the team!
             message: 'CA setup completed successfully',
             firm_name,
             client_added: !!business_name,
-            invited_members: createdStaff.length
+            invited_members: createdStaff.length,
+            user: {
+                id: caUser.id,
+                name: caUser.name,
+                email: caUser.email,
+                role: caUser.role,
+                setup_completed: caUser.setup_completed,
+                is_firm_setup_complete: caUser.is_firm_setup_complete,
+                firm_id: caUser.firm_id
+            },
+            firm: firm
         });
 
     } catch (error) {
