@@ -272,8 +272,6 @@ const addClient = async (req, res) => {
 
 const completeSetup = async (req, res) => {
     try {
-        const caUserId = req.user.id;
-
         const {
             firm_name,
             teamMembers,
@@ -292,11 +290,22 @@ const completeSetup = async (req, res) => {
             return res.status(400).json({ message: 'Firm name is required' });
         }
 
-        // 1. Update User to mark setup completed
-        const caUser = await User.findByPk(caUserId);
+        let caUserId = req.user.id;
+        
+        let caUser;
+        if (caUserId) {
+            caUser = await User.findByPk(caUserId);
+        } else if (req.user.email) {
+            caUser = await User.findOne({ where: { email: req.user.email } });
+        }
+
         if (!caUser) {
+            console.log('[SETUP] CA User not found. ID:', caUserId, 'Email:', req.user.email);
             return res.status(404).json({ message: 'CA User not found' });
         }
+        
+        caUserId = caUser.id; // ensure caUserId is correctly set to DB ID
+
         caUser.name = firm_name;
         caUser.setup_completed = true;
         await caUser.save();

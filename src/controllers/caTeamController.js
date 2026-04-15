@@ -62,9 +62,34 @@ const getStaffMembers = async (req, res) => {
 const inviteStaffMember = async (req, res) => {
     try {
         console.log('Invite Request Body:', req.body);
-        const caId = req.user.id;
         const { name, email, mobile, phone, role, assigned_client_ids } = req.body;
         
+        let caId = req.user.id;
+        let parentUser;
+        if (caId) {
+            parentUser = await User.findByPk(caId);
+        } else if (req.user.email) {
+            parentUser = await User.findOne({ where: { email: req.user.email } });
+        }
+
+        if (!parentUser) {
+            console.log('[TEAM INVITE] CA User not found. ID:', caId, 'Email:', req.user.email);
+            return res.status(404).json({ success: false, message: 'CA User not found' });
+        }
+        
+        caId = parentUser.id; // Corrected to internal DB id
+        
+        console.log(`[TEAM INVITE] Invoker ID: ${caId}, Role: ${parentUser.role}, Setup: ${parentUser.setup_completed}, Firm Setup: ${parentUser.is_firm_setup_complete}`);
+
+        // Check if firm setup is complete.
+        // It allows 'owner' or 'ca' roles.
+        if (!parentUser.setup_completed && !parentUser.is_firm_setup_complete && !parentUser.firm_id) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Firm profile incomplete. Please complete Firm Setup first.' 
+            });
+        }
+
         const contactMobile = mobile || phone;
 
         if (!name || !email || !contactMobile || !role) {
