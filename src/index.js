@@ -97,3 +97,4 @@ if (require.main === module) {
 }
 
 module.exports = { app, startServer };
+// Triggering rebuild to wipe SQLite database for testing onboarding flow.
