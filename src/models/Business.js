@@ -19,7 +19,15 @@ const Business = sequelize.define('Business', {
         type: DataTypes.STRING(20),
         allowNull: true,
     },
+    primary_phone: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+    },
     whatsapp_mobile: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+    },
+    secondary_phone: {
         type: DataTypes.STRING(20),
         allowNull: true,
     },
@@ -27,8 +35,16 @@ const Business = sequelize.define('Business', {
         type: DataTypes.STRING(10),
         allowNull: true,
     },
+    pan_number: {
+        type: DataTypes.STRING(15),
+        allowNull: true,
+    },
     gstin: {
         type: DataTypes.STRING(15),
+        allowNull: true,
+    },
+    gst_number: {
+        type: DataTypes.STRING(25),
         allowNull: true,
     },
     business_type: {

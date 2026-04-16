@@ -61,9 +61,7 @@ const getStaffMembers = async (req, res) => {
 
 const inviteStaffMember = async (req, res) => {
     try {
-        console.log('Invite Request Body:', req.body);
         const { name, email, mobile, phone, role, assigned_client_ids } = req.body;
-        
         let caId = req.user.id;
         let parentUser;
         if (caId) {
@@ -90,12 +88,13 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
-        const contactMobile = mobile || phone;
+        // Ensure phone is explicitly prioritized based on new frontend changes
+        const contactMobile = phone || mobile;
 
         if (!name || !email || !contactMobile || !role) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Name, email, mobile, and role are required' 
+                message: 'Name, email, phone/mobile, and role are required' 
             });
         }
 
