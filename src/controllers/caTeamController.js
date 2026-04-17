@@ -1,6 +1,7 @@
 const { User, StaffClientAssignment, Business, CAClient, Invitation } = require('../models');
 const { Op } = require('sequelize');
 const { generateToken } = require('../utils/jwtService');
+const nodemailer = require('nodemailer');
 
 const getStaffMembers = async (req, res) => {
     try {
@@ -133,25 +134,37 @@ const inviteStaffMember = async (req, res) => {
             invite_expiry
         });
 
-        // Log the link
         const caFirmName = req.user.name || 'Your CA Firm';
-        const baseOrigin = req.body.origin || `${req.protocol}://${req.get('host')}`;
-        const setupLink = `${baseOrigin}/setup-password?token=${invite_token}`;
+        const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${invite_token}`;
 
-        console.log(`
-=========================================================
-[MOCK EMAIL SENT TO: ${email}]
-Subject: Invitation to join ${caFirmName} on VyaparOS
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT,
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS
+            }
+        });
 
-Hello ${name},
-
-You have been invited to join ${caFirmName} as a ${role === 'ca_staff' ? 'Staff Member' : 'Article Assistant'}.
-Please click the link below to set your password and access your dashboard.
-This link will expire in 24 hours.
-
-Set Up Account: ${setupLink}
-=========================================================
-`);
+        try {
+            await transporter.sendMail({
+                from: process.env.SMTP_USER,
+                to: email,
+                subject: `Invitation to join ${caFirmName} on VyaparOS`,
+                html: `
+                    <h2>Hello ${name},</h2>
+                    <p>You have been invited to join <strong>${caFirmName}</strong> as a ${role === 'ca_staff' ? 'Staff Member' : 'Article Assistant'}.</p>
+                    <p>Please click the link below to set your password and access your dashboard. This link will expire in 24 hours.</p>
+                    <a href="${inviteUrl}">Set Up Account</a>
+                `
+            });
+        } catch (emailError) {
+            console.error('Email delivery failure:', emailError);
+            return res.status(500).json({
+                success: false,
+                message: 'Email delivery failure'
+            });
+        }
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
             const newAssignments = assigned_client_ids.map(bId => ({
@@ -161,7 +174,7 @@ Set Up Account: ${setupLink}
             await StaffClientAssignment.bulkCreate(newAssignments);
         }
 
-        res.status(201).json({ 
+        res.status(200).json({ 
             success: true, 
             message: 'Invitation created successfully' 
         });
