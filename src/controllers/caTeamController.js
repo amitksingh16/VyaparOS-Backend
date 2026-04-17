@@ -135,7 +135,7 @@ const inviteStaffMember = async (req, res) => {
         });
 
         const caFirmName = req.user.name || 'Your CA Firm';
-        const inviteUrl = `${process.env.FRONTEND_URL}/invite?token=${invite_token}`;
+        const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
 
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST,
