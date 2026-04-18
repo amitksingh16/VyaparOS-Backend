@@ -30,6 +30,7 @@ const documentRoutes = require('./routes/documentRoutes');
 const invitationRoutes = require('./routes/invitationRoutes');
 const actionRoutes = require('./routes/actionRoutes');
 const firmRoutes = require('./routes/firm.routes');
+const onboardingRoutes = require('./routes/onboardingRoutes');
 
 // Serve static uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
@@ -38,11 +39,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/compliance', complianceRoutes);
 app.use('/api/ca/team', caTeamRoutes);
+app.use('/api/team', caTeamRoutes);
 app.use('/api/ca', caRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/actions', actionRoutes);
 app.use('/api/firm', firmRoutes);
+app.use('/api/onboarding', onboardingRoutes);
 
 const cron = require('node-cron');
 const { runDailyReminders } = require('./utils/reminderEngine');

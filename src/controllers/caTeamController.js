@@ -147,6 +147,9 @@ const inviteStaffMember = async (req, res) => {
         });
 
         try {
+            // OPTIONAL: log instead of email for now
+            console.log('Sending invitation email to:', email, 'Invite URL:', inviteUrl);
+            /*
             await transporter.sendMail({
                 from: process.env.SMTP_USER,
                 to: email,
@@ -158,12 +161,10 @@ const inviteStaffMember = async (req, res) => {
                     <a href="${inviteUrl}">Set Up Account</a>
                 `
             });
+            */
         } catch (emailError) {
             console.error('Email delivery failure:', emailError);
-            return res.status(500).json({
-                success: false,
-                message: 'Email delivery failure'
-            });
+            // DO NOT RETURN 500
         }
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {

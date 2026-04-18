@@ -2,6 +2,19 @@ const { User, ActivityLog } = require('../models');
 const admin = require("../config/firebaseAdmin");
 const bcrypt = require('bcryptjs');
 
+const serializeUser = (user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: user.phone,
+    is_verified: user.is_verified,
+    setup_completed: user.setup_completed,
+    isOnboardingComplete: Boolean(user.setup_completed),
+    firm_id: user.firm_id,
+    is_firm_setup_complete: user.is_firm_setup_complete,
+});
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
@@ -44,14 +57,7 @@ const register = async (req, res) => {
 
         res.status(201).json({
             message: 'User registered successfully.',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                is_verified: user.is_verified,
-                setup_completed: user.setup_completed,
-            }
+            user: serializeUser(user)
         });
     } catch (error) {
         console.error('Registration Error:', error);
@@ -102,14 +108,7 @@ const login = async (req, res) => {
         // 4. Send back the user profile
         res.status(200).json({
             message: 'Login successful',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                is_verified: user.is_verified,
-                setup_completed: user.setup_completed,
-            },
+            user: serializeUser(user),
         });
     } catch (error) {
         console.error('Login Error:', error);
@@ -128,7 +127,7 @@ const getProfile = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        res.json(user);
+        res.json(serializeUser(user));
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
@@ -203,14 +202,7 @@ const setPassword = async (req, res) => {
 
         res.status(200).json({
             message: 'Staff account setup successfully',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                is_verified: user.is_verified,
-                setup_completed: user.setup_completed,
-            },
+            user: serializeUser(user),
         });
     } catch (error) {
         console.error('Staff setup error:', error);
@@ -236,17 +228,36 @@ const mockStaffLogin = async (req, res) => {
         res.status(200).json({
             message: 'Mock staff login successful',
             user: {
-                id: staff.id,
-                name: staff.name,
-                email: staff.email,
-                role: staff.role,
+                ...serializeUser(staff),
                 is_verified: true,
                 setup_completed: true,
+                isOnboardingComplete: true,
             },
         });
     } catch (error) {
         console.error('Mock staff login error:', error);
         res.status(500).json({ message: 'Server error generating mock login' });
+    }
+};
+
+const completeOnboarding = async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.setup_completed = true;
+        await user.save();
+
+        res.status(200).json({
+            message: 'Onboarding completed successfully',
+            user: serializeUser(user),
+        });
+    } catch (error) {
+        console.error('Onboarding completion error:', error);
+        res.status(500).json({ message: 'Server error while completing onboarding' });
     }
 };
 
@@ -256,5 +267,6 @@ module.exports = {
     getProfile,
     verifyInvite,
     setPassword,
-    mockStaffLogin
+    mockStaffLogin,
+    completeOnboarding
 };

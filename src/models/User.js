@@ -67,6 +67,10 @@ const User = sequelize.define('User', {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
     },
+    isOnboardingComplete: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
 }, {
     timestamps: true,
     tableName: 'users',

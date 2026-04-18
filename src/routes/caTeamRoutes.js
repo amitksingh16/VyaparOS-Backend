@@ -8,6 +8,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 router.get('/', protect, caTeamController.getStaffMembers);
 router.post('/', protect, caTeamController.inviteStaffMember);
+router.post('/invite', protect, caTeamController.inviteStaffMember);
 router.delete('/:id', protect, caTeamController.removeStaffMember);
 router.put('/:id/assignments', protect, caTeamController.updateStaffAssignments);
 
