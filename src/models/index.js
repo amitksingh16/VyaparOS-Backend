@@ -13,7 +13,7 @@ const Invitation = require('./Invitation');
 const ClientMeta = require('./ClientMeta');
 const Firm = require('./Firm');
 
-// Relationships
+// Relationships---
 
 // Firm & User (Owner)
 Firm.belongsTo(User, { foreignKey: 'owner_id', as: 'owner' });
@@ -116,3 +116,4 @@ module.exports = {
     ClientMeta,
     Firm
 };
+// code endes here//
