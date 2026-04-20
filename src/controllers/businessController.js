@@ -18,6 +18,18 @@ const createBusiness = async (req, res) => {
 
         // TODO: Verify PAN/GSTIN via external API here
 
+        
+        const mobileRegex = /^[0-9]{10}$/;
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+        if (pan && !panRegex.test(pan)) {
+            return res.status(400).json({ message: 'Invalid PAN format.' });
+        }
+        if (gstin && !gstinRegex.test(gstin)) {
+            return res.status(400).json({ message: 'Invalid GSTIN format.' });
+        }
+
         const business = await Business.create({
             owner_id: req.user.id,
             business_name,

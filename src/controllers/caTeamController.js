@@ -99,6 +99,14 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
+        const mobileRegex = /^[0-9]{10}$/;
+        if (!mobileRegex.test(contactMobile)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid mobile format. Must be 10 digits.'
+            });
+        }
+
         // Check if user already exists
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
@@ -147,11 +155,13 @@ const inviteStaffMember = async (req, res) => {
         });
 
         try {
-            // OPTIONAL: log instead of email for now
+            await transporter.verify();
+            console.log('SMTP connection verified successfully.');
+
             console.log('Sending invitation email to:', email, 'Invite URL:', inviteUrl);
-            /*
+            
             await transporter.sendMail({
-                from: process.env.SMTP_USER,
+                from: process.env.SMTP_USER || 'admin.vyaparos@gmail.com',
                 to: email,
                 subject: `Invitation to join ${caFirmName} on VyaparOS`,
                 html: `
@@ -161,7 +171,7 @@ const inviteStaffMember = async (req, res) => {
                     <a href="${inviteUrl}">Set Up Account</a>
                 `
             });
-            */
+            console.log(`Successfully sent invitation to: ${email} via admin.vyaparos@gmail.com`);
         } catch (emailError) {
             console.error('Email delivery failure:', emailError);
             // DO NOT RETURN 500

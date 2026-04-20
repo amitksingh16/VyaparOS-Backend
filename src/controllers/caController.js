@@ -220,6 +220,22 @@ const addClient = async (req, res) => {
             return res.status(400).json({ message: 'GSTIN is required if GST registered' });
         }
 
+        
+        const mobileRegex = /^[0-9]{10}$/;
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+        if (primary_mobile && !mobileRegex.test(primary_mobile)) {
+            return res.status(400).json({ message: 'Invalid mobile format. Must be 10 digits.' });
+        }
+        if (pan_number && !panRegex.test(pan_number)) {
+            return res.status(400).json({ message: 'Invalid PAN format.' });
+        }
+        const effectiveGst = gst_registered ? (gstin || gst_number) : (gst_number || gstin || null);
+        if (effectiveGst && !gstinRegex.test(effectiveGst)) {
+            return res.status(400).json({ message: 'Invalid GSTIN format.' });
+        }
+
         // 1. Create the new Business
         const newBusiness = await Business.create({
             business_name,
@@ -350,6 +366,22 @@ const completeSetup = async (req, res) => {
 
         // 2. Process Initial Client if provided
         if (business_name && email) {
+
+            const mobileRegex = /^[0-9]{10}$/;
+            const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+            const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+            
+            if (primary_mobile && !mobileRegex.test(primary_mobile)) {
+                return res.status(400).json({ message: 'Invalid mobile format. Must be 10 digits.' });
+            }
+            if (pan_number && !panRegex.test(pan_number)) {
+                return res.status(400).json({ message: 'Invalid PAN format.' });
+            }
+            const effectiveGst = gst_registered ? (gstin || gst_number) : (gst_number || gstin || null);
+            if (effectiveGst && !gstinRegex.test(effectiveGst)) {
+                return res.status(400).json({ message: 'Invalid GSTIN format.' });
+            }
+
             const newBusiness = await Business.create({
                 business_name,
                 email,
