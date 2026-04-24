@@ -711,6 +711,89 @@ const bulkAssignClients = async (req, res) => {
     }
 };
 
+const setupCA = async (req, res) => {
+    try {
+        const {
+            firm_name,
+            estimated_clients,
+            portfolio_composition,
+            pan_number,
+            gstin,
+            mobile_number
+        } = req.body;
+
+        if (!firm_name) {
+            return res.status(400).json({ success: false, message: 'Firm name is required' });
+        }
+
+        const mobileRegex = /^[0-9]{10}$/;
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+        if (mobile_number && !mobileRegex.test(mobile_number)) {
+            return res.status(400).json({ success: false, message: 'Invalid mobile format. Must be 10 digits.' });
+        }
+        if (pan_number && !panRegex.test(pan_number)) {
+            return res.status(400).json({ success: false, message: 'Invalid PAN format.' });
+        }
+        if (gstin && !gstinRegex.test(gstin)) {
+            return res.status(400).json({ success: false, message: 'Invalid GSTIN format.' });
+        }
+
+        let caUserId = req.user.id;
+        
+        let caUser;
+        if (caUserId) {
+            caUser = await User.findByPk(caUserId);
+        } else if (req.user.email) {
+            caUser = await User.findOne({ where: { email: req.user.email } });
+        }
+
+        if (!caUser) {
+            return res.status(404).json({ success: false, message: 'CA User not found' });
+        }
+        
+        caUserId = caUser.id;
+
+        try {
+            let firm = await Firm.findOne({ where: { owner_id: caUserId } });
+            if (firm) {
+                firm.name = firm_name;
+                if (estimated_clients !== undefined) firm.estimated_clients = estimated_clients;
+                if (portfolio_composition !== undefined) firm.portfolio_composition = portfolio_composition;
+                if (pan_number !== undefined) firm.pan = pan_number;
+                if (gstin !== undefined) firm.gst = gstin;
+                if (mobile_number !== undefined) firm.phone = mobile_number;
+                await firm.save();
+            } else {
+                firm = await Firm.create({
+                    name: firm_name,
+                    email: caUser.email,
+                    phone: mobile_number || caUser.phone,
+                    owner_id: caUserId,
+                    estimated_clients: estimated_clients || null,
+                    portfolio_composition: portfolio_composition || null,
+                    pan: pan_number || null,
+                    gst: gstin || null
+                });
+            }
+
+            caUser.name = firm_name;
+            caUser.firm_id = firm.id;
+            await caUser.save();
+
+            return res.status(200).json({ success: true, message: 'Step 1 Completed' });
+        } catch (dbError) {
+            console.error('SQLite Error saving Firm in setupCA:', dbError);
+            return res.status(500).json({ success: false, message: 'Database error', error: dbError.message });
+        }
+
+    } catch (error) {
+        console.error('Error in setupCA:', error);
+        res.status(500).json({ success: false, message: 'Server error while completing CA setup' });
+    }
+};
+
 module.exports = {
     getCADashboard,
     addClient,
@@ -720,5 +803,6 @@ module.exports = {
     getRecentActivities,
     triggerReminders,
     getEscalations,
-    bulkAssignClients
+    bulkAssignClients,
+    setupCA
 };
