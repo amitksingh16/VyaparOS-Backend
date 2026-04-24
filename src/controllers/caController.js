@@ -782,7 +782,7 @@ const setupCA = async (req, res) => {
             caUser.firm_id = firm.id;
             await caUser.save();
 
-            return res.status(200).json({ success: true, message: 'Step 1 Completed' });
+            return res.status(200).json({ success: true, message: 'Step 1 details saved' });
         } catch (dbError) {
             console.error('SQLite Error saving Firm in setupCA:', dbError);
             return res.status(500).json({ success: false, message: 'Database error', error: dbError.message });
