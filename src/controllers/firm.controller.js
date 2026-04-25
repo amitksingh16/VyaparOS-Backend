@@ -37,10 +37,10 @@ exports.createFirm = async (req, res) => {
         const newFirm = await Firm.create({
             name,
             type,
-            pan,
-            gst,
+            pan_number: pan,
+            gstin: gst,
             email,
-            phone,
+            mobile_number: phone,
             address,
             owner_id: ownerId
         });

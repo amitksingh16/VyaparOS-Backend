@@ -713,6 +713,7 @@ const bulkAssignClients = async (req, res) => {
 
 const setupCA = async (req, res) => {
     try {
+        console.log("RECEIVED DATA:", req.body);
         const {
             firm_name,
             total_clients,
@@ -722,12 +723,14 @@ const setupCA = async (req, res) => {
             mobile_number
         } = req.body;
 
+        const errors = [];
+
         if (!firm_name) {
-            return res.status(400).json({ success: false, message: 'Firm name is required' });
+            errors.push({ message: 'Firm name is required' });
         }
 
         if (!pan_number) {
-            return res.status(400).json({ success: false, message: 'PAN number is required' });
+            errors.push({ message: 'PAN number is required' });
         }
 
         const mobileRegex = /^[0-9]{10}$/;
@@ -735,18 +738,22 @@ const setupCA = async (req, res) => {
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
         if (mobile_number && !mobileRegex.test(mobile_number)) {
-            return res.status(400).json({ success: false, message: 'Invalid mobile format. Must be 10 digits.' });
+            errors.push({ message: 'Invalid mobile format. Must be 10 digits.' });
         }
         if (pan_number && !panRegex.test(pan_number)) {
-            return res.status(400).json({ success: false, message: 'Invalid PAN format.' });
+            errors.push({ message: 'Invalid PAN format.' });
         }
 
         let finalGstin = null;
         if (gstin && String(gstin).trim() !== '') {
             finalGstin = String(gstin).trim().toUpperCase();
             if (!gstinRegex.test(finalGstin)) {
-                return res.status(400).json({ success: false, message: 'Invalid GSTIN format.' });
+                errors.push({ message: 'Invalid GSTIN format.' });
             }
+        }
+
+        if (errors.length > 0) {
+            return res.status(400).json({ success: false, error: errors, message: "Missing or Invalid fields" });
         }
 
         let caUserId = req.user.id;
@@ -770,26 +777,26 @@ const setupCA = async (req, res) => {
                 firm.name = firm_name;
                 if (total_clients !== undefined) firm.estimated_clients = total_clients;
                 if (specialization !== undefined) firm.portfolio_composition = specialization;
-                firm.pan = pan_number;
+                firm.pan_number = pan_number;
                 if (gstin !== undefined) {
-                    firm.gst = finalGstin;
+                    firm.gstin = finalGstin;
                 }
                 if (mobile_number) {
-                    firm.phone = mobile_number;
+                    firm.mobile_number = mobile_number;
                 } else if (caUser.phone) {
-                    firm.phone = caUser.phone;
+                    firm.mobile_number = caUser.phone;
                 }
                 await firm.save();
             } else {
                 firm = await Firm.create({
                     name: firm_name,
                     email: caUser.email,
-                    phone: mobile_number || caUser.phone,
+                    mobile_number: mobile_number || caUser.phone,
                     owner_id: caUserId,
                     estimated_clients: total_clients || null,
                     portfolio_composition: specialization || null,
-                    pan: pan_number,
-                    gst: finalGstin
+                    pan_number: pan_number,
+                    gstin: finalGstin
                 });
             }
 

@@ -14,17 +14,19 @@ const Firm = sequelize.define('Firm', {
     type: {
         type: DataTypes.STRING,
     },
-    pan: {
+    pan_number: {
         type: DataTypes.STRING,
+        unique: false,
     },
-    gst: {
+    gstin: {
         type: DataTypes.STRING,
+        unique: false,
     },
     email: {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    phone: {
+    mobile_number: {
         type: DataTypes.STRING,
         allowNull: false,
     },
