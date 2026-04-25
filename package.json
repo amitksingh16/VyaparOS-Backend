@@ -6,7 +6,8 @@
     "scripts": {
         "start": "node src/index.js",
         "dev": "nodemon src/index.js",
-        "push": "git add . && git commit -m \"Update VyaparOS-Backend\" && git push"
+        "push": "git add . && git commit -m \"Update VyaparOS-Backend\" && git push",
+        "reset-db": "node scripts/resetDevData.js"
     },
     "dependencies": {
         "archiver": "^7.0.1",
