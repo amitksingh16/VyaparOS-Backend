@@ -763,7 +763,11 @@ const setupCA = async (req, res) => {
                 if (portfolio_composition !== undefined) firm.portfolio_composition = portfolio_composition;
                 if (pan_number !== undefined) firm.pan = pan_number;
                 if (gstin !== undefined) firm.gst = gstin;
-                if (mobile_number !== undefined) firm.phone = mobile_number;
+                if (mobile_number) {
+                    firm.phone = mobile_number;
+                } else if (caUser.phone) {
+                    firm.phone = caUser.phone;
+                }
                 await firm.save();
             } else {
                 firm = await Firm.create({
