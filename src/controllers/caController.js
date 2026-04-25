@@ -726,6 +726,10 @@ const setupCA = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Firm name is required' });
         }
 
+        if (!pan_number) {
+            return res.status(400).json({ success: false, message: 'PAN number is required' });
+        }
+
         const mobileRegex = /^[0-9]{10}$/;
         const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
@@ -736,8 +740,13 @@ const setupCA = async (req, res) => {
         if (pan_number && !panRegex.test(pan_number)) {
             return res.status(400).json({ success: false, message: 'Invalid PAN format.' });
         }
-        if (gstin && !gstinRegex.test(gstin)) {
-            return res.status(400).json({ success: false, message: 'Invalid GSTIN format.' });
+
+        let finalGstin = null;
+        if (gstin && String(gstin).trim() !== '') {
+            finalGstin = String(gstin).trim().toUpperCase();
+            if (!gstinRegex.test(finalGstin)) {
+                return res.status(400).json({ success: false, message: 'Invalid GSTIN format.' });
+            }
         }
 
         let caUserId = req.user.id;
@@ -761,8 +770,10 @@ const setupCA = async (req, res) => {
                 firm.name = firm_name;
                 if (total_clients !== undefined) firm.estimated_clients = total_clients;
                 if (specialization !== undefined) firm.portfolio_composition = specialization;
-                if (pan_number !== undefined) firm.pan = pan_number;
-                if (gstin !== undefined) firm.gst = gstin;
+                firm.pan = pan_number;
+                if (gstin !== undefined) {
+                    firm.gst = finalGstin;
+                }
                 if (mobile_number) {
                     firm.phone = mobile_number;
                 } else if (caUser.phone) {
@@ -777,8 +788,8 @@ const setupCA = async (req, res) => {
                     owner_id: caUserId,
                     estimated_clients: total_clients || null,
                     portfolio_composition: specialization || null,
-                    pan: pan_number || null,
-                    gst: gstin || null
+                    pan: pan_number,
+                    gst: finalGstin
                 });
             }
 
