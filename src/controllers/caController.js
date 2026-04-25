@@ -715,8 +715,8 @@ const setupCA = async (req, res) => {
     try {
         const {
             firm_name,
-            estimated_clients,
-            portfolio_composition,
+            total_clients,
+            specialization,
             pan_number,
             gstin,
             mobile_number
@@ -759,8 +759,8 @@ const setupCA = async (req, res) => {
             let firm = await Firm.findOne({ where: { owner_id: caUserId } });
             if (firm) {
                 firm.name = firm_name;
-                if (estimated_clients !== undefined) firm.estimated_clients = estimated_clients;
-                if (portfolio_composition !== undefined) firm.portfolio_composition = portfolio_composition;
+                if (total_clients !== undefined) firm.estimated_clients = total_clients;
+                if (specialization !== undefined) firm.portfolio_composition = specialization;
                 if (pan_number !== undefined) firm.pan = pan_number;
                 if (gstin !== undefined) firm.gst = gstin;
                 if (mobile_number) {
@@ -775,8 +775,8 @@ const setupCA = async (req, res) => {
                     email: caUser.email,
                     phone: mobile_number || caUser.phone,
                     owner_id: caUserId,
-                    estimated_clients: estimated_clients || null,
-                    portfolio_composition: portfolio_composition || null,
+                    estimated_clients: total_clients || null,
+                    portfolio_composition: specialization || null,
                     pan: pan_number || null,
                     gst: gstin || null
                 });
@@ -786,14 +786,14 @@ const setupCA = async (req, res) => {
             caUser.firm_id = firm.id;
             await caUser.save();
 
-            return res.status(200).json({ success: true, message: 'Step 1 details saved' });
+            return res.status(200).json({ success: true, message: "Onboarding Step 1 complete" });
         } catch (dbError) {
-            console.error('SQLite Error saving Firm in setupCA:', dbError);
+            console.error("DB Error:", dbError);
             return res.status(500).json({ success: false, message: 'Database error', error: dbError.message });
         }
 
     } catch (error) {
-        console.error('Error in setupCA:', error);
+        console.error("DB Error:", error);
         res.status(500).json({ success: false, message: 'Server error while completing CA setup' });
     }
 };
