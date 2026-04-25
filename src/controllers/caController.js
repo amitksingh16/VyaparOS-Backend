@@ -723,45 +723,12 @@ const setupCA = async (req, res) => {
             mobile_number
         } = req.body;
 
-        const errors = [];
-
-        if (!firm_name) {
-            errors.push({ message: 'Firm name is required' });
-        }
-
-        if (!pan_number) {
-            errors.push({ message: 'PAN number is required' });
-        }
-
-        const mobileRegex = /^[0-9]{10}$/;
-        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
-        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-
-        if (mobile_number && !mobileRegex.test(mobile_number)) {
-            errors.push({ message: 'Invalid mobile format. Must be 10 digits.' });
-        }
-        if (pan_number && !panRegex.test(pan_number)) {
-            errors.push({ message: 'Invalid PAN format.' });
-        }
-
-        let finalGstin = null;
-        if (gstin && String(gstin).trim() !== '') {
-            finalGstin = String(gstin).trim().toUpperCase();
-            if (!gstinRegex.test(finalGstin)) {
-                errors.push({ message: 'Invalid GSTIN format.' });
-            }
-        }
-
-        if (errors.length > 0) {
-            return res.status(400).json({ success: false, error: errors, message: "Missing or Invalid fields" });
-        }
-
-        let caUserId = req.user.id;
-        
+        let caUserId = req.user?.id;
         let caUser;
+
         if (caUserId) {
             caUser = await User.findByPk(caUserId);
-        } else if (req.user.email) {
+        } else if (req.user?.email) {
             caUser = await User.findOne({ where: { email: req.user.email } });
         }
 
@@ -771,48 +738,37 @@ const setupCA = async (req, res) => {
         
         caUserId = caUser.id;
 
-        try {
-            let firm = await Firm.findOne({ where: { owner_id: caUserId } });
-            if (firm) {
-                firm.name = firm_name;
-                if (total_clients !== undefined) firm.estimated_clients = total_clients;
-                if (specialization !== undefined) firm.portfolio_composition = specialization;
-                firm.pan_number = pan_number;
-                if (gstin !== undefined) {
-                    firm.gstin = finalGstin;
-                }
-                if (mobile_number) {
-                    firm.mobile_number = mobile_number;
-                } else if (caUser.phone) {
-                    firm.mobile_number = caUser.phone;
-                }
-                await firm.save();
-            } else {
-                firm = await Firm.create({
-                    name: firm_name,
-                    email: caUser.email,
-                    mobile_number: mobile_number || caUser.phone,
-                    owner_id: caUserId,
-                    estimated_clients: total_clients || null,
-                    portfolio_composition: specialization || null,
-                    pan_number: pan_number,
-                    gstin: finalGstin
-                });
-            }
-
-            caUser.name = firm_name;
-            caUser.firm_id = firm.id;
-            await caUser.save();
-
-            return res.status(200).json({ success: true, message: "Onboarding Step 1 complete" });
-        } catch (dbError) {
-            console.error("DB Error:", dbError);
-            return res.status(500).json({ success: false, message: 'Database error', error: dbError.message });
+        let firm = await Firm.findOne({ where: { owner_id: caUserId } });
+        if (firm) {
+            firm.name = firm_name || firm.name;
+            firm.estimated_clients = total_clients ?? firm.estimated_clients ?? null;
+            firm.portfolio_composition = specialization ?? firm.portfolio_composition ?? null;
+            firm.pan_number = pan_number ?? firm.pan_number ?? null;
+            firm.gstin = gstin ?? firm.gstin ?? null;
+            firm.mobile_number = mobile_number ?? firm.mobile_number ?? caUser.phone ?? null;
+            await firm.save();
+        } else {
+            firm = await Firm.create({
+                name: firm_name || 'My Firm',
+                email: caUser.email,
+                mobile_number: mobile_number || caUser.phone || null,
+                owner_id: caUserId,
+                estimated_clients: total_clients || null,
+                portfolio_composition: specialization || null,
+                pan_number: pan_number || null,
+                gstin: gstin || null
+            });
         }
+
+        caUser.name = firm_name || caUser.name;
+        caUser.firm_id = firm.id;
+        await caUser.save();
+
+        return res.status(200).json({ success: true, message: "Step 1 bypassed" });
 
     } catch (error) {
         console.error("DB Error:", error);
-        res.status(500).json({ success: false, message: 'Server error while completing CA setup' });
+        return res.status(500).json({ success: false, error: error.message, location: "DB Update Failed" });
     }
 };
 
