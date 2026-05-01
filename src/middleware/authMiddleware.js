@@ -22,8 +22,25 @@ const protect = async (req, res, next) => {
         // 1. Firebase se token verify karwayein
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // 2. Token ki information (email, uid) request mein daal dein
-        req.user = decodedToken;
+        // 2. Hydrate the Firebase token with our local DB user fields.
+        let dbUser = null;
+        if (decodedToken.uid) {
+            dbUser = await User.findOne({ where: { firebase_uid: decodedToken.uid } });
+        }
+        if (!dbUser && decodedToken.email) {
+            dbUser = await User.findOne({ where: { email: decodedToken.email } });
+        }
+
+        req.user = dbUser
+            ? {
+                ...decodedToken,
+                id: dbUser.id,
+                role: dbUser.role,
+                email: dbUser.email || decodedToken.email,
+                name: dbUser.name || decodedToken.name,
+                phone: dbUser.phone
+            }
+            : decodedToken;
 
         // 3. Sab sahi hai, aage jaane do! (Very Important)
         next();

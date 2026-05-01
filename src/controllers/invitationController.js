@@ -1,4 +1,132 @@
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { Invitation, User, StaffClientAssignment, CAClient } = require('../models');
+
+const createInvitationTransporter = () => {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        throw new Error('EMAIL_USER and EMAIL_PASS must be configured to send invitation emails');
+    }
+
+    return nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        }
+    });
+};
+
+const sendInvitation = async (req, res) => {
+    try {
+        const {
+            staffEmail,
+            email,
+            phone,
+            mobile,
+            role = 'ca_staff',
+            assigned_client_ids,
+            firm_name,
+            inviteLink
+        } = req.body;
+
+        const inviteEmail = staffEmail || email;
+        const invitePhone = phone || mobile;
+
+        if (!inviteEmail) {
+            return res.status(400).json({ success: false, message: 'staffEmail is required' });
+        }
+
+        const requesterEmail = req.user?.email;
+        let caUser = null;
+
+        if (req.user?.id) {
+            caUser = await User.findByPk(req.user.id);
+        }
+
+        if (!caUser && req.user?.uid) {
+            caUser = await User.findOne({ where: { firebase_uid: req.user.uid } });
+        }
+
+        if (!caUser && requesterEmail) {
+            caUser = await User.findOne({ where: { email: requesterEmail } });
+        }
+
+        const caId = caUser?.id;
+        const firmName = firm_name || caUser?.name || 'VyaparOS';
+
+        let invitation;
+        let finalInviteLink = inviteLink;
+
+        if (!finalInviteLink) {
+            if (!invitePhone) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'phone or inviteLink is required'
+                });
+            }
+
+            if (!['ca_staff', 'ca_article'].includes(role)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid role. Must be ca_staff or ca_article'
+                });
+            }
+
+            if (!caId) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Unable to identify CA user for invitation'
+                });
+            }
+
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 24);
+
+            invitation = await Invitation.create({
+                token: crypto.randomUUID(),
+                email: inviteEmail,
+                phone: invitePhone,
+                role,
+                assigned_clients_json: Array.isArray(assigned_client_ids) ? JSON.stringify(assigned_client_ids) : null,
+                expires_at: expiresAt,
+                ca_id: caId,
+                firm_name: firmName
+            });
+
+            finalInviteLink = `https://vyaparos-frontend.vercel.app/invite?token=${invitation.token}`;
+        }
+
+        const transporter = createInvitationTransporter();
+
+        console.log("Sending invite to:", inviteEmail);
+
+        await transporter.sendMail({
+            from: process.env.EMAIL_USER,
+            to: inviteEmail,
+            subject: "VyaparOS Invitation",
+            html: `
+    <h2>You are invited</h2>
+    <p>Click below to join:</p>
+    <a href="${finalInviteLink}">Join Now</a>
+  `
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Invitation email sent successfully',
+            token: invitation?.token,
+            inviteLink: finalInviteLink
+        });
+    } catch (err) {
+        console.error('Failed to send invitation email:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to send invitation email',
+            error: err.message
+        });
+    }
+};
+
 const validateInvitation = async (req, res) => {
     try {
         const { token } = req.params;
@@ -128,6 +256,7 @@ const validateInvitation = async (req, res) => {
 };
 
 module.exports = {
+    sendInvitation,
     validateInvitation,
     acceptInvitation
 };

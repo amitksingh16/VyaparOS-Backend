@@ -39,7 +39,7 @@ const Invitation = sequelize.define('Invitation', {
         allowNull: false
     },
     ca_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.UUID,
         allowNull: false
     },
     firm_name: {

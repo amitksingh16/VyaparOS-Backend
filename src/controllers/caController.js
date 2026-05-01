@@ -4,6 +4,65 @@ const { generateInitialCompliances } = require('./complianceController');
 const { runDailyReminders } = require('../utils/reminderEngine');
 const { generateToken } = require('../utils/jwtService');
 
+const pickFirst = (...values) => values.find(value => value !== undefined && value !== null && value !== '');
+
+const resolveRequestUser = async (req) => {
+    if (!req.user) return null;
+
+    if (req.user.id) {
+        const user = await User.findByPk(req.user.id);
+        if (user) return user;
+    }
+
+    if (req.user.uid) {
+        const user = await User.findOne({ where: { firebase_uid: req.user.uid } });
+        if (user) return user;
+    }
+
+    if (req.user.email) {
+        const user = await User.findOne({ where: { email: req.user.email } });
+        if (user) return user;
+    }
+
+    return null;
+};
+
+const normalizeClientPayload = (body) => ({
+    businessName: pickFirst(body.businessName, body.business_name, body.name),
+    email: pickFirst(body.email),
+    mobile: pickFirst(body.mobile, body.primaryMobile, body.primary_mobile, body.phone, body.primary_phone),
+    whatsappMobile: pickFirst(body.whatsappMobile, body.whatsapp_mobile),
+    primaryPhone: pickFirst(body.primaryPhone, body.primary_phone),
+    secondaryPhone: pickFirst(body.secondaryPhone, body.secondary_phone),
+    pan: pickFirst(body.pan, body.panNumber, body.pan_number),
+    gstNumber: pickFirst(body.gstNumber, body.gst_number),
+    businessType: pickFirst(body.businessType, body.business_type, body.entityType, body.entity_type),
+    gstRegistered: pickFirst(body.gstRegistered, body.gst_registered),
+    gstin: pickFirst(body.gstin),
+    filingType: pickFirst(body.filingType, body.filing_type),
+    state: pickFirst(body.state),
+    assignedTo: pickFirst(body.assignedTo, body.assigned_to)
+});
+
+const isTruthyInput = (value) => value === true || value === 'true' || value === 1 || value === '1' || value === 'yes';
+
+const normalizeBusinessType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    const typeMap = {
+        prop: 'prop',
+        proprietorship: 'prop',
+        sole_proprietorship: 'prop',
+        llp: 'llp',
+        pvt_ltd: 'pvt_ltd',
+        private_limited: 'pvt_ltd',
+        'private limited': 'pvt_ltd',
+        partnership: 'partnership',
+        opc: 'opc'
+    };
+
+    return typeMap[normalized] || 'prop';
+};
+
 const getCADashboard = async (req, res) => {
     try {
         const caUserId = req.user.id;
@@ -176,79 +235,83 @@ const getCADashboard = async (req, res) => {
 
 const addClient = async (req, res) => {
     try {
-        let caUserId = req.user.id;
-        const userRole = req.user.role; // can be 'ca', 'ca_staff', 'ca_article'
+        console.log("Incoming client data:", req.body);
+
+        const currentUser = await resolveRequestUser(req);
+        if (!currentUser) {
+            return res.status(401).json({ message: 'Authenticated user account not found' });
+        }
+
+        let caUserId = currentUser.id;
+        const userRole = currentUser.role; // can be 'ca', 'ca_staff', 'ca_article'
         let added_by_staff_id = null;
 
         // If a staff is adding a client, the CA owner is their parent_ca_id
         if (userRole === 'ca_staff' || userRole === 'ca_article') {
-            const staffUser = await User.findByPk(req.user.id);
+            const staffUser = currentUser;
             if (!staffUser || !staffUser.parent_ca_id) {
                 return res.status(403).json({ message: 'Staff member is not associated with a CA firm.' });
             }
             caUserId = staffUser.parent_ca_id; // Assign to the firm overarching ID
-            added_by_staff_id = req.user.id;   // Keep track of the actual creator
+            added_by_staff_id = currentUser.id;   // Keep track of the actual creator
         }
 
         const {
-            business_name,
+            businessName,
             email,
-            primary_mobile,
-            whatsapp_mobile,
-            primary_phone,
-            secondary_phone,
-            pan_number,
-            gst_number,
-            business_type,
-            entity_type,
-            gst_registered,
+            mobile,
+            whatsappMobile,
+            primaryPhone,
+            secondaryPhone,
+            pan,
+            gstNumber,
+            businessType,
+            gstRegistered,
             gstin,
-            filing_type,
+            filingType,
             state,
-            assigned_to
-        } = req.body;
+            assignedTo
+        } = normalizeClientPayload(req.body);
 
-        if (!business_name) {
-            return res.status(400).json({ message: 'Business name is required' });
-        }
-        
-        if (!email) {
-            return res.status(400).json({ message: 'Email address is required' });
+        if (!businessName || !email) {
+            return res.status(400).json({ message: "Missing required fields" });
         }
 
-        if (gst_registered && !gstin) {
+        const isGstRegistered = isTruthyInput(gstRegistered);
+        if (isGstRegistered && !gstin && !gstNumber) {
             return res.status(400).json({ message: 'GSTIN is required if GST registered' });
         }
 
-        
         const mobileRegex = /^[0-9]{10}$/;
         const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 
-        if (primary_mobile && !mobileRegex.test(primary_mobile)) {
+        if (mobile && !mobileRegex.test(mobile)) {
             return res.status(400).json({ message: 'Invalid mobile format. Must be 10 digits.' });
         }
-        if (pan_number && !panRegex.test(pan_number)) {
+        if (pan && !panRegex.test(pan)) {
             return res.status(400).json({ message: 'Invalid PAN format.' });
         }
-        const effectiveGst = gst_registered ? (gstin || gst_number) : (gst_number || gstin || null);
+        const effectiveGst = isGstRegistered ? (gstin || gstNumber) : (gstNumber || gstin || null);
         if (effectiveGst && !gstinRegex.test(effectiveGst)) {
             return res.status(400).json({ message: 'Invalid GSTIN format.' });
         }
 
         // 1. Create the new Business
         const newBusiness = await Business.create({
-            business_name,
+            owner_id: caUserId,
+            business_name: businessName,
             email,
-            primary_mobile: primary_mobile || null,
-            primary_phone: primary_phone || null,
-            whatsapp_mobile: whatsapp_mobile || null,
-            secondary_phone: secondary_phone || null,
-            pan_number: pan_number || null,
-            gst_number: gst_number || null,
-            business_type: business_type || entity_type || 'prop',
-            gstin: gst_registered ? (gstin || gst_number) : null,
-            filing_type: filing_type || 'monthly',
+            primary_mobile: mobile || null,
+            primary_phone: primaryPhone || null,
+            whatsapp_mobile: whatsappMobile || null,
+            secondary_phone: secondaryPhone || null,
+            pan: pan || null,
+            pan_number: pan || null,
+            gst_number: gstNumber || null,
+            business_type: normalizeBusinessType(businessType),
+            gstin: isGstRegistered ? (gstin || gstNumber) : null,
+            filing_type: filingType || 'monthly',
             state: state || null,
             added_by_staff_id: added_by_staff_id
         });
@@ -261,9 +324,9 @@ const addClient = async (req, res) => {
         });
 
         // 2.5 If assigned explicitly, use that; else if staff added it, auto-assign the client to them
-        if (assigned_to) {
+        if (assignedTo) {
             await StaffClientAssignment.create({
-                staff_id: assigned_to,
+                staff_id: assignedTo,
                 business_id: newBusiness.id
             });
         } else if (added_by_staff_id) {
@@ -279,7 +342,7 @@ const addClient = async (req, res) => {
         // 4. Create Activity Log
         await ActivityLog.create({
             client_id: newBusiness.id,
-            performed_by: req.user.id, // the physical person who added it
+            performed_by: currentUser.id, // the physical person who added it
             event_type: 'CLIENT_CREATED',
             description: 'Client onboarded successfully.',
         });
@@ -290,8 +353,11 @@ const addClient = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error adding new client:', error);
-        res.status(500).json({ message: 'Server error while adding client' });
+        console.error("CLIENT CREATE ERROR:", error);
+        return res.status(500).json({
+            message: "Server error while adding client",
+            error: error.message
+        });
     }
 };
 

@@ -124,6 +124,13 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+            return res.status(500).json({
+                success: false,
+                message: 'EMAIL_USER and EMAIL_PASS must be configured to send invitation emails'
+            });
+        }
+
         const crypto = require('crypto');
         const invite_token = crypto.randomBytes(32).toString('hex');
 
@@ -142,39 +149,38 @@ const inviteStaffMember = async (req, res) => {
             invite_expiry
         });
 
-        const caFirmName = req.user.name || 'Your CA Firm';
         const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
 
         const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT,
+            service: "gmail",
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
             }
         });
 
         try {
-            await transporter.verify();
-            console.log('SMTP connection verified successfully.');
-
-            console.log('Sending invitation email to:', email, 'Invite URL:', inviteUrl);
+            console.log("Sending invite to:", email);
             
             await transporter.sendMail({
-                from: process.env.SMTP_USER || 'admin.vyaparos@gmail.com',
+                from: process.env.EMAIL_USER,
                 to: email,
-                subject: `Invitation to join ${caFirmName} on VyaparOS`,
+                subject: "VyaparOS Invitation",
                 html: `
-                    <h2>Hello ${name},</h2>
-                    <p>You have been invited to join <strong>${caFirmName}</strong> as a ${role === 'ca_staff' ? 'Staff Member' : 'Article Assistant'}.</p>
-                    <p>Please click the link below to set your password and access your dashboard. This link will expire in 24 hours.</p>
-                    <a href="${inviteUrl}">Set Up Account</a>
+                    <h2>You are invited</h2>
+                    <p>Click below to join:</p>
+                    <a href="${inviteUrl}">Join Now</a>
                 `
             });
-            console.log(`Successfully sent invitation to: ${email} via admin.vyaparos@gmail.com`);
+            console.log(`Successfully sent invitation to: ${email}`);
         } catch (emailError) {
             console.error('Email delivery failure:', emailError);
-            // DO NOT RETURN 500
+            await newUser.destroy();
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send invitation email',
+                error: emailError.message
+            });
         }
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
