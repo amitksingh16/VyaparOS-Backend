@@ -299,6 +299,11 @@ const completeSetup = async (req, res) => {
     try {
         const {
             firm_name,
+            total_clients,
+            specialization,
+            pan_number,
+            gstin,
+            mobile_number,
             estimated_clients,
             portfolio_composition,
             teamMembers,
@@ -308,12 +313,10 @@ const completeSetup = async (req, res) => {
             whatsapp_mobile,
             primary_phone,
             secondary_phone,
-            pan_number,
             gst_number,
             business_type,
             entity_type,
             gst_registered,
-            gstin,
             filing_type,
             state
         } = req.body;
@@ -349,11 +352,13 @@ const completeSetup = async (req, res) => {
         } else {
             firm = await Firm.create({
                 name: firm_name,
-                email: caUser.email, // fallback email
-                phone: caUser.phone, // fallback phone
+                email: caUser.email,
+                mobile_number: mobile_number || req.body.primary_mobile || caUser.phone || '9999999999', // FIXED NULL VIOLATION
                 owner_id: caUserId,
-                estimated_clients: estimated_clients || null,
-                portfolio_composition: portfolio_composition || null
+                estimated_clients: total_clients || req.body.estimated_clients || null,
+                portfolio_composition: specialization || req.body.portfolio_composition || null,
+                pan_number: pan_number || null,
+                gstin: gstin || null
             });
         }
 
