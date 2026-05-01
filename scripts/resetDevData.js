@@ -2,27 +2,23 @@ const { sequelize, User, Firm, CAClient, Invitation, Business, StaffClientAssign
 
 async function resetDatabase() {
     try {
-        console.log("Starting environment cleanup...");
+        console.log("Starting environment cleanup and schema update...");
 
-        // Disable foreign key checks for SQLite if needed (though usually fine for delete all)
+        // Disable foreign key checks for SQLite
         await sequelize.query('PRAGMA foreign_keys = OFF');
 
-        // Destroy data across relevant tables
-        await ActivityLog.destroy({ where: {}, truncate: true, cascade: true });
-        await StaffClientAssignment.destroy({ where: {}, truncate: true, cascade: true });
-        await CAClient.destroy({ where: {}, truncate: true, cascade: true });
-        await Invitation.destroy({ where: {}, truncate: true, cascade: true });
-        await Business.destroy({ where: {}, truncate: true, cascade: true });
-        await Firm.destroy({ where: {}, truncate: true, cascade: true });
-        await User.destroy({ where: {}, truncate: true, cascade: true });
+        // FORCE: TRUE drops all tables and recreates them. 
+        // This ensures new columns like 'mobile_number' and 'gstin' are created in the Firm table.
+        console.log("Dropping old tables and syncing new schema...");
+        await sequelize.sync({ force: true });
 
         // Re-enable foreign key checks
         await sequelize.query('PRAGMA foreign_keys = ON');
 
-        console.log("Cleanup complete. Ready for fresh Demo testing.");
+        console.log("✅ BOOM! Database wiped & schema updated. Ready for fresh CA Onboarding testing.");
         process.exit(0);
     } catch (error) {
-        console.error("Failed to clean database:", error);
+        console.error("❌ Failed to clean and sync database:", error);
         process.exit(1);
     }
 }
