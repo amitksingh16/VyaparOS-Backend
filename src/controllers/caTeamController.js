@@ -1,7 +1,7 @@
 const { User, StaffClientAssignment, Business, CAClient, Invitation } = require('../models');
 const { Op } = require('sequelize');
 const { generateToken } = require('../utils/jwtService');
-const nodemailer = require('nodemailer');
+const { sendInviteEmail } = require('../utils/emailService');
 
 const getStaffMembers = async (req, res) => {
     try {
@@ -144,37 +144,8 @@ const inviteStaffMember = async (req, res) => {
 
         const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
 
-        console.log("ENV CHECK:");
-        console.log("EMAIL_USER:", process.env.EMAIL_USER);
-        console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
-
-        const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-
-        try {
-            console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "NOT SET");
-            console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "SET" : "NOT SET");
-            console.log("Sending invite to:", email);
-            
-            await transporter.sendMail({
-                from: process.env.EMAIL_USER,
-                to: email,
-                subject: "VyaparOS Invitation",
-                html: `
-                    <h2>You are invited</h2>
-                    <p>Click below to join:</p>
-                    <a href="${inviteUrl}">Join Now</a>
-                `
-            });
-            console.log(`Successfully sent invitation to: ${email}`);
-        } catch (emailError) {
-            console.error("Email failed but continuing:", emailError.message);
-        }
+        console.log("Sending invite to:", email);
+        await sendInviteEmail(email, inviteUrl);
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
             const newAssignments = assigned_client_ids.map(bId => ({

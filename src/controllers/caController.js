@@ -1,4 +1,4 @@
-const { sendInvitationEmail } = require('../utils/emailService');
+const { sendInviteEmail } = require('../utils/emailService');
 const { CAClient, StaffClientAssignment, Business, ComplianceItem, User, ActivityLog, NotificationLog, Document, Firm } = require('../models');
 const { Op } = require('sequelize');
 const { generateInitialCompliances } = require('./complianceController');
@@ -521,14 +521,8 @@ const completeSetup = async (req, res) => {
                 const frontendUrl = req.body.origin || 'https://vyaparos-frontend.vercel.app';
                 const setupLink = `${frontendUrl}/staff-setup?token=${invite_token}`;
 
-                // Fire the Real Email Engine
-                await sendInvitationEmail(
-                    member.email,
-                    member.name,
-                    firm_name,
-                    role,
-                    setupLink
-                );
+                // Fire the email engine without blocking onboarding if delivery fails.
+                await sendInviteEmail(member.email, setupLink);
             }
         }
 
