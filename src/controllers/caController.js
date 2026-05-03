@@ -1,3 +1,4 @@
+const { sendInvitationEmail } = require('../utils/emailService');
 const { CAClient, StaffClientAssignment, Business, ComplianceItem, User, ActivityLog, NotificationLog, Document, Firm } = require('../models');
 const { Op } = require('sequelize');
 const { generateInitialCompliances } = require('./complianceController');
@@ -392,7 +393,7 @@ const completeSetup = async (req, res) => {
         }
 
         let caUserId = req.user.id;
-        
+
         let caUser;
         if (caUserId) {
             caUser = await User.findByPk(caUserId);
@@ -404,7 +405,7 @@ const completeSetup = async (req, res) => {
             console.log('[SETUP] CA User not found. ID:', caUserId, 'Email:', req.user.email);
             return res.status(404).json({ message: 'CA User not found' });
         }
-        
+
         caUserId = caUser.id; // ensure caUserId is correctly set to DB ID
 
         // Create or Update Firm Record
@@ -441,7 +442,7 @@ const completeSetup = async (req, res) => {
             const mobileRegex = /^[0-9]{10}$/;
             const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
             const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-            
+
             if (primary_mobile && !mobileRegex.test(primary_mobile)) {
                 return res.status(400).json({ message: 'Invalid mobile format. Must be 10 digits.' });
             }
@@ -516,26 +517,18 @@ const completeSetup = async (req, res) => {
                     email: newStaff.email
                 });
 
-                // Simulate email sending
-                const setupLink = `http://localhost:5173/staff-setup?token=${invite_token}`;
-                console.log(`
-=========================================================
-[MOCK EMAIL SENT TO: ${member.email}]
-Subject: Invitation to join ${firm_name} on VyaparOS
+                // Generate the actual setup link (Adjust if frontend runs on a different port/URL)
+                const frontendUrl = req.body.origin || 'https://vyaparos-frontend.vercel.app';
+                const setupLink = `${frontendUrl}/staff-setup?token=${invite_token}`;
 
-Hello ${member.name},
-
-You have been invited to join ${firm_name} as a ${role === 'ca_staff' ? 'Staff Member' : 'Article Assistant'}.
-VyaparOS is our central compliance and practice management platform.
-
-Please click the link below to set your password and access your dashboard.
-Your dashboard will be restricted to only the clients assigned to you.
-
-Set Up Account: ${setupLink}
-
-Welcome to the team!
-=========================================================
-`);
+                // Fire the Real Email Engine
+                await sendInvitationEmail(
+                    member.email,
+                    member.name,
+                    firm_name,
+                    role,
+                    setupLink
+                );
             }
         }
 
@@ -575,7 +568,7 @@ const getClientDetails = async (req, res) => {
             if (!caClient) {
                 return res.status(403).json({ message: 'Not authorized to view this client' });
             }
-        } 
+        }
         // If user is staff/article, verify they are explicitly assigned to this client
         else if (['ca_staff', 'ca_article'].includes(req.user.role)) {
             const assignment = await StaffClientAssignment.findOne({
@@ -634,7 +627,7 @@ const updateClient = async (req, res) => {
         if (updates.assigned_to !== undefined) {
             // Remove existing assignments globally for this business (assuming 1-to-1)
             await StaffClientAssignment.destroy({ where: { business_id: id } });
-            
+
             if (updates.assigned_to) {
                 await StaffClientAssignment.create({
                     staff_id: updates.assigned_to,
@@ -787,9 +780,9 @@ const setupCA = async (req, res) => {
         console.log("📥 RECEIVED AT BACKEND:", req.body);
         // Hard bypass: DO NOT ATTEMPT TO SAVE TO DB to avoid 'column not found' errors.
         // We are forcing a 200 OK to unblock the frontend UI flow.
-        return res.status(200).json({ 
-            success: true, 
-            message: "Backend bypassed successfully. Proceed to Step 2." 
+        return res.status(200).json({
+            success: true,
+            message: "Backend bypassed successfully. Proceed to Step 2."
         });
     } catch (error) {
         console.error("Backend Error:", error);
