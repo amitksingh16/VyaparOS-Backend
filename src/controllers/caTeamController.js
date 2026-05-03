@@ -124,13 +124,6 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
-        if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-            return res.status(500).json({
-                success: false,
-                message: 'EMAIL_USER and EMAIL_PASS must be configured to send invitation emails'
-            });
-        }
-
         const crypto = require('crypto');
         const invite_token = crypto.randomBytes(32).toString('hex');
 
@@ -150,6 +143,10 @@ const inviteStaffMember = async (req, res) => {
         });
 
         const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
+
+        console.log("ENV CHECK:");
+        console.log("EMAIL_USER:", process.env.EMAIL_USER);
+        console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
 
         const transporter = nodemailer.createTransport({
             service: "gmail",
@@ -174,11 +171,11 @@ const inviteStaffMember = async (req, res) => {
             });
             console.log(`Successfully sent invitation to: ${email}`);
         } catch (emailError) {
-            console.error('Email delivery failure:', emailError);
+            console.error("EMAIL ERROR:", emailError);
             await newUser.destroy();
             return res.status(500).json({
                 success: false,
-                message: 'Failed to send invitation email',
+                message: 'Email failed',
                 error: emailError.message
             });
         }
@@ -199,7 +196,8 @@ const inviteStaffMember = async (req, res) => {
         console.error('Error inviting staff:', err.message);
         res.status(500).json({ 
             success: false, 
-            message: err.message 
+            message: 'Email failed',
+            error: err.message
         });
     }
 };

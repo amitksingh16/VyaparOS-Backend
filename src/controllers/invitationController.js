@@ -3,10 +3,6 @@ const nodemailer = require('nodemailer');
 const { Invitation, User, StaffClientAssignment, CAClient } = require('../models');
 
 const createInvitationTransporter = () => {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        throw new Error('EMAIL_USER and EMAIL_PASS must be configured to send invitation emails');
-    }
-
     return nodemailer.createTransport({
         service: "gmail",
         auth: {
@@ -96,20 +92,29 @@ const sendInvitation = async (req, res) => {
             finalInviteLink = `https://vyaparos-frontend.vercel.app/invite?token=${invitation.token}`;
         }
 
+        console.log("ENV CHECK:");
+        console.log("EMAIL_USER:", process.env.EMAIL_USER);
+        console.log("EMAIL_PASS exists:", !!process.env.EMAIL_PASS);
+
         const transporter = createInvitationTransporter();
 
         console.log("Sending invite to:", inviteEmail);
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: inviteEmail,
-            subject: "VyaparOS Invitation",
-            html: `
+        try {
+            await transporter.sendMail({
+                from: process.env.EMAIL_USER,
+                to: inviteEmail,
+                subject: "VyaparOS Invitation",
+                html: `
     <h2>You are invited</h2>
     <p>Click below to join:</p>
     <a href="${finalInviteLink}">Join Now</a>
   `
-        });
+            });
+        } catch (err) {
+            console.error("EMAIL ERROR:", err);
+            throw err;
+        }
 
         res.status(200).json({
             success: true,
@@ -121,7 +126,7 @@ const sendInvitation = async (req, res) => {
         console.error('Failed to send invitation email:', err);
         res.status(500).json({
             success: false,
-            message: 'Failed to send invitation email',
+            message: 'Email failed',
             error: err.message
         });
     }
