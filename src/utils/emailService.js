@@ -4,11 +4,17 @@ const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink
     try {
         // Create the transporter engine
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: process.env.SMTP_PORT || 465,
+            secure: true, // Use true for 465, false for other ports
             auth: {
-                user: process.env.EMAIL_USER, // Hum isko .env mein set karenge
-                pass: process.env.EMAIL_PASS  // App password
-            }
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            },
+            // Connection timeout settings
+            connectionTimeout: 10000, // 10 seconds
+            greetingTimeout: 10000,
+            socketTimeout: 10000
         });
 
         const roleName = role === 'ca_staff' ? 'Senior Staff' : 'Article Assistant';
