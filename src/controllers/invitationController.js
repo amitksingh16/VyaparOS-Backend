@@ -98,9 +98,12 @@ const sendInvitation = async (req, res) => {
 
         const transporter = createInvitationTransporter();
 
+        console.log("Sending email using:", process.env.EMAIL_USER);
         console.log("Sending invite to:", inviteEmail);
 
         try {
+            console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "NOT SET");
+            console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "SET" : "NOT SET");
             await transporter.sendMail({
                 from: process.env.EMAIL_USER,
                 to: inviteEmail,
@@ -112,8 +115,7 @@ const sendInvitation = async (req, res) => {
   `
             });
         } catch (err) {
-            console.error("EMAIL ERROR:", err);
-            throw err;
+            console.error("Email failed but continuing:", err.message);
         }
 
         res.status(200).json({

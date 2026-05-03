@@ -157,6 +157,8 @@ const inviteStaffMember = async (req, res) => {
         });
 
         try {
+            console.log("EMAIL_USER:", process.env.EMAIL_USER ? "SET" : "NOT SET");
+            console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "SET" : "NOT SET");
             console.log("Sending invite to:", email);
             
             await transporter.sendMail({
@@ -171,13 +173,7 @@ const inviteStaffMember = async (req, res) => {
             });
             console.log(`Successfully sent invitation to: ${email}`);
         } catch (emailError) {
-            console.error("EMAIL ERROR:", emailError);
-            await newUser.destroy();
-            return res.status(500).json({
-                success: false,
-                message: 'Email failed',
-                error: emailError.message
-            });
+            console.error("Email failed but continuing:", emailError.message);
         }
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
