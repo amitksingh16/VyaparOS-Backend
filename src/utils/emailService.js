@@ -2,16 +2,19 @@ const nodemailer = require('nodemailer');
 
 const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink) => {
     try {
-        // Create the transporter engine
+        // Updated Transporter for Cloud Environments
         const transporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: process.env.SMTP_PORT || 465,
-            secure: true, // Use true for 465, false for other ports
+            port: parseInt(process.env.SMTP_PORT) || 587, // Changed from 465 to 587
+            secure: false, // secure: false is MANDATORY for port 587
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
             },
-            // Connection timeout settings
+            // TLS configuration to handle handshake issues
+            tls: {
+                rejectUnauthorized: false
+            },
             connectionTimeout: 10000, // 10 seconds
             greetingTimeout: 10000,
             socketTimeout: 10000
@@ -19,7 +22,6 @@ const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink
 
         const roleName = role === 'ca_staff' ? 'Senior Staff' : 'Article Assistant';
 
-        // Beautiful HTML Email Template
         const mailOptions = {
             from: `"VyaparOS Workspace" <${process.env.EMAIL_USER}>`,
             to: toEmail,
@@ -49,9 +51,11 @@ const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink
             `
         };
 
-        // Fire the email
+        console.log(`🚀 Attempting to send real email to: ${toEmail} via Port 587...`);
+
         await transporter.sendMail(mailOptions);
-        console.log(`✅ REAL EMAIL SENT TO: ${toEmail}`);
+
+        console.log(`✅ SUCCESS: Invitation email delivered to ${toEmail}`);
         return true;
 
     } catch (error) {
