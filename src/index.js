@@ -71,8 +71,14 @@ const startServer = async () => {
 
         // Force table alteration/creation temporarily for deployment
         console.log('[DB] Syncing models to database...');
-        await sequelize.sync({ alter: true });
-        console.log("⚠️ DATABASE WIPED AND RECREATED SUCCESSFULLY!");
+        // await sequelize.sync({ alter: true });
+        // Temporarily force sync to clean database
+        // WARNING: This will delete ALL data on deployment
+        sequelize.sync({ force: true }).then(() => {
+            console.log("⚠️ DATABASE WIPED AND RECREATED SUCCESSFULLY!");
+        }).catch(err => {
+            console.error("❌ SYNC ERROR:", err);
+        });
 
         // Deep Database Sync: Cleanup orphaned staff_client_assignments
         console.log('[SYNC] Cleaning up orphaned client assignments...');
