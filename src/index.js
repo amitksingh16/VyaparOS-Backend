@@ -11,14 +11,22 @@ require('./config/firebaseAdmin');
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 
-const ALLOWED_ORIGIN = 'https://vyaparos-frontend.vercel.app';
+// 🚀 BULLETPROOF CORS SETUP
+const corsOptions = {
+    origin: [
+        'https://vyaparos-frontend.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:5173'
+    ], // Localhost bhi add kar diya future testing ke liye
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Legacy browsers ke liye
+};
 
-app.use(cors({
-    origin: ALLOWED_ORIGIN,
-    credentials: true
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Har route par preflight request allow karega
 
-app.options(ALLOWED_ORIGIN, cors());
 app.use(express.json());
 
 const authRoutes = require('./routes/authRoutes');
