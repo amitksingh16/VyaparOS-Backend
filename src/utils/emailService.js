@@ -7,7 +7,7 @@ if (!process.env.RESEND_API_KEY) {
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink) => {
+const sendInviteEmail = async (toEmail, staffName, firmName, role, setupLink) => {
     try {
         // Double check key before sending
         if (!process.env.RESEND_API_KEY) {
@@ -52,4 +52,4 @@ const sendInvitationEmail = async (toEmail, staffName, firmName, role, setupLink
     }
 };
 
-module.exports = { sendInvitationEmail };
+module.exports = { sendInviteEmail };

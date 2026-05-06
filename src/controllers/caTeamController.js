@@ -75,17 +75,17 @@ const inviteStaffMember = async (req, res) => {
             console.log('[TEAM INVITE] CA User not found. ID:', caId, 'Email:', req.user.email);
             return res.status(404).json({ success: false, message: 'CA User not found' });
         }
-        
+
         caId = parentUser.id; // Corrected to internal DB id
-        
+
         console.log(`[TEAM INVITE] Invoker ID: ${caId}, Role: ${parentUser.role}, Setup: ${parentUser.setup_completed}, Firm Setup: ${parentUser.is_firm_setup_complete}`);
 
         // Check if firm setup is complete.
         // It allows 'owner' or 'ca' roles.
         if (!parentUser.setup_completed && !parentUser.is_firm_setup_complete && !parentUser.firm_id) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Firm profile incomplete. Please complete Firm Setup first.' 
+            return res.status(400).json({
+                success: false,
+                message: 'Firm profile incomplete. Please complete Firm Setup first.'
             });
         }
 
@@ -93,9 +93,9 @@ const inviteStaffMember = async (req, res) => {
         const contactMobile = phone || mobile;
 
         if (!name || !email || !contactMobile || !role) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Name, email, phone/mobile, and role are required' 
+            return res.status(400).json({
+                success: false,
+                message: 'Name, email, phone/mobile, and role are required'
             });
         }
 
@@ -110,17 +110,17 @@ const inviteStaffMember = async (req, res) => {
         // Check if user already exists
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'User with this email already exists' 
+            return res.status(400).json({
+                success: false,
+                message: 'User with this email already exists'
             });
         }
 
         const existingPhoneUser = await User.findOne({ where: { phone: contactMobile } });
         if (existingPhoneUser) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'User with this mobile already exists' 
+            return res.status(400).json({
+                success: false,
+                message: 'User with this mobile already exists'
             });
         }
 
@@ -145,7 +145,15 @@ const inviteStaffMember = async (req, res) => {
         const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
 
         console.log("Sending invite to:", email);
-        await sendInviteEmail(email, inviteUrl);
+
+        // FIX: Passing all 5 parameters for the email service
+        await sendInviteEmail(
+            email,
+            name,
+            parentUser.name || 'VyaparOS',
+            role,
+            inviteUrl
+        );
 
         if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
             const newAssignments = assigned_client_ids.map(bId => ({
@@ -155,14 +163,14 @@ const inviteStaffMember = async (req, res) => {
             await StaffClientAssignment.bulkCreate(newAssignments);
         }
 
-        res.status(200).json({ 
-            success: true, 
-            message: 'Invitation created successfully' 
+        res.status(200).json({
+            success: true,
+            message: 'Invitation created successfully'
         });
     } catch (err) {
         console.error('Error inviting staff:', err.message);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: 'Email failed',
             error: err.message
         });
@@ -236,7 +244,7 @@ const updateStaffAssignments = async (req, res) => {
             const inviteId = req.params.id.replace('inv_', '');
             const invite = await Invitation.findOne({ where: { id: inviteId, ca_id: caId } });
             if (!invite) return res.status(404).json({ message: 'Invitation not found' });
-            
+
             invite.assigned_clients_json = JSON.stringify(assigned_client_ids);
             await invite.save();
             return res.json({ message: 'Invitation assignments updated successfully', client_count: assigned_client_ids.length });

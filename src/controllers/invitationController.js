@@ -83,7 +83,16 @@ const sendInvitation = async (req, res) => {
         }
 
         console.log("Sending invite to:", inviteEmail);
-        await sendInviteEmail(inviteEmail, finalInviteLink);
+
+        // FIX: Extract staffName and pass all 5 parameters
+        const staffName = req.body.name || req.body.staffName || inviteEmail.split('@')[0];
+        await sendInviteEmail(
+            inviteEmail,
+            staffName,
+            firmName,
+            role,
+            finalInviteLink
+        );
 
         res.status(200).json({
             success: true,
@@ -133,7 +142,7 @@ const validateInvitation = async (req, res) => {
     }
 };
 
-    const acceptInvitation = async (req, res) => {
+const acceptInvitation = async (req, res) => {
     try {
         const { token } = req.params;
         const { name, email } = req.body;
