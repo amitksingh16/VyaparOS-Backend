@@ -64,33 +64,25 @@ const startServer = async () => {
     try {
         const { sequelize, databaseStorage } = require('./config/db');
 
-        // Ensure connection is established
+        // Connection Check
         await sequelize.authenticate();
         console.log('[DB] Connection established successfully.');
-        console.log(`[DB] SQLite storage path: ${databaseStorage}`);
 
-        // Force table alteration/creation temporarily for deployment
-        console.log('[DB] Syncing models to database...');
-        // await sequelize.sync({ alter: true });
-        // Temporarily force sync to clean database
-        // WARNING: This will delete ALL data on deployment
-        sequelize.sync({ force: true }).then(() => {
-            console.log("⚠️ DATABASE WIPED AND RECREATED SUCCESSFULLY!");
-        }).catch(err => {
-            console.error("❌ SYNC ERROR:", err);
-        });
+        // 🔥 STEP 1: Wipe database properly for fresh onboarding
+        // Isse SQLite tables ekdum nayi banengi
+        console.log('[DB] SYNC: Wiping and recreating tables...');
+        await sequelize.sync({ force: true });
 
-        // Deep Database Sync: Cleanup orphaned staff_client_assignments
-        console.log('[SYNC] Cleaning up orphaned client assignments...');
+        // Deep Database Sync: Cleanup orphaned assignments
+        console.log('[SYNC] Cleaning up database...');
         await sequelize.query(`
-            DELETE FROM staff_client_assignments
+            DELETE FROM staff_client_assignments 
             WHERE business_id NOT IN (SELECT id FROM businesses)
-        `);
-        console.log('[SYNC] Cleanup complete.');
+        `).catch(e => console.log("Init cleanup skipped"));
 
         const server = app.listen(PORT, '0.0.0.0', () => {
-            console.log(`Server running on port ${PORT}`);
-            console.log('Backend boot complete.');
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log('✅ Fresh Database Ready for Onboarding.');
         });
 
         return server;
@@ -99,12 +91,6 @@ const startServer = async () => {
         throw err;
     }
 };
-
-if (require.main === module) {
-    startServer().catch(() => {
-        process.exitCode = 1;
-    });
-}
 
 module.exports = { app, startServer };
 // Triggering rebuild to wipe SQLite database for testing onboarding flow.
