@@ -11,24 +11,28 @@ require('./config/firebaseAdmin');
 const app = express();
 const PORT = Number(process.env.PORT) || 8080;
 
+// Railway/Cloud environments ke liye proxy trust enable karna zaroori hai
+app.set('trust proxy', 1);
+
 // 🚀 BULLETPROOF CORS SETUP
 const corsOptions = {
     origin: [
         'https://vyaparos-frontend.vercel.app',
         'http://localhost:3000',
         'http://localhost:5173'
-    ], // Localhost bhi add kar diya future testing ke liye
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
-    optionsSuccessStatus: 200 // Legacy browsers ke liye
+    optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Har route par preflight request allow karega
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 
+// Routes
 const authRoutes = require('./routes/authRoutes');
 const businessRoutes = require('./routes/businessRoutes');
 const complianceRoutes = require('./routes/complianceRoutes');
@@ -59,10 +63,10 @@ const cron = require('node-cron');
 const { runDailyReminders } = require('./utils/reminderEngine');
 
 app.get('/', (req, res) => {
-    res.send('Backend is Alive');
+    res.send('Backend is Alive and Healthy');
 });
 
-// Intelligent Reminder System: Run daily at midnight
+// Reminder System
 cron.schedule('0 0 * * *', async () => {
     console.log('[CRON] Executing scheduled daily reminder engine...');
     await runDailyReminders();
@@ -72,25 +76,15 @@ const startServer = async () => {
     try {
         const { sequelize, databaseStorage } = require('./config/db');
 
-        // Connection Check
         await sequelize.authenticate();
         console.log('[DB] Connection established successfully.');
 
-        // 🔥 STEP 1: Wipe database properly for fresh onboarding
-        // Isse SQLite tables ekdum nayi banengi
+        // 🔥 CRITICAL: Force Sync temporarily to wipe data
         console.log('[DB] SYNC: Wiping and recreating tables...');
         await sequelize.sync({ force: true });
 
-        // Deep Database Sync: Cleanup orphaned assignments
-        console.log('[SYNC] Cleaning up database...');
-        await sequelize.query(`
-            DELETE FROM staff_client_assignments 
-            WHERE business_id NOT IN (SELECT id FROM businesses)
-        `).catch(e => console.log("Init cleanup skipped"));
-
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running on port ${PORT}`);
-            console.log('✅ Fresh Database Ready for Onboarding.');
         });
 
         return server;
@@ -100,5 +94,12 @@ const startServer = async () => {
     }
 };
 
+// Railway automatically calls the export if configured, or we run it here
+if (require.main === module) {
+    startServer().catch((err) => {
+        console.error("Startup Crash:", err);
+        process.exit(1);
+    });
+}
+
 module.exports = { app, startServer };
-// Triggering rebuild to wipe SQLite database for testing onboarding flow.
