@@ -1,3 +1,4 @@
+const admin = require('../config/firebaseAdmin');
 const crypto = require('crypto');
 const { Invitation, User, StaffClientAssignment, CAClient } = require('../models');
 const { sendInviteEmail } = require('../utils/emailService');
@@ -157,7 +158,6 @@ const acceptInvitation = async (req, res) => {
         }
 
         const invitation = await Invitation.findOne({ where: { token } });
-
         if (!invitation || invitation.status !== 'pending') {
             return res.status(400).json({ message: 'Invalid or expired invitation' });
         }
@@ -168,11 +168,18 @@ const acceptInvitation = async (req, res) => {
             return res.status(400).json({ message: 'Invitation has expired' });
         }
 
-        if (idToken !== 'mock_token_123') {
-            return res.status(401).json({ message: 'Authentication disabled during reset' });
+        // 🔥 THE FIX: Real Firebase Token Verification (Removed mock_token_123) 🔥
+        let decodedToken;
+        try {
+            decodedToken = await admin.auth().verifyIdToken(idToken);
+            console.log("✅ Staff Firebase Token Verified:", decodedToken.email);
+        } catch (error) {
+            console.error("❌ Token Verification Failed:", error.message);
+            return res.status(401).json({ message: 'Invalid or expired session token' });
         }
 
         const authEmail = email || invitation.email;
+
         const existingUser = await User.findOne({ where: { email: authEmail } });
         if (existingUser) {
             return res.status(400).json({ message: 'An account with this email already exists' });
@@ -185,11 +192,11 @@ const acceptInvitation = async (req, res) => {
             role: invitation.role,
             parent_ca_id: invitation.ca_id,
             invite_status: 'active',
-            is_verified: true, // Auto-verified since they accepted the invite
-            setup_completed: true // Pre-setup
+            is_verified: true,
+            setup_completed: true
         });
 
-        // 3. Process assignments
+        // Process assignments
         let assigned_client_ids = [];
         if (invitation.assigned_clients_json) {
             try {
@@ -200,7 +207,6 @@ const acceptInvitation = async (req, res) => {
         }
 
         if (assigned_client_ids.length > 0) {
-            // Verify the parent CA actually has these clients active (sanity check)
             const caClients = await CAClient.findAll({
                 where: {
                     ca_id: invitation.ca_id,
@@ -208,6 +214,7 @@ const acceptInvitation = async (req, res) => {
                     status: 'active'
                 }
             });
+
             const validBusinessIds = caClients.map(c => c.business_id);
 
             if (validBusinessIds.length > 0) {
