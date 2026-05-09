@@ -65,6 +65,7 @@ const inviteStaffMember = async (req, res) => {
         const { name, email, mobile, phone, role, assigned_client_ids } = req.body;
         let caId = req.user.id;
         let parentUser;
+
         if (caId) {
             parentUser = await User.findByPk(caId);
         } else if (req.user.email) {
@@ -72,16 +73,11 @@ const inviteStaffMember = async (req, res) => {
         }
 
         if (!parentUser) {
-            console.log('[TEAM INVITE] CA User not found. ID:', caId, 'Email:', req.user.email);
             return res.status(404).json({ success: false, message: 'CA User not found' });
         }
 
-        caId = parentUser.id; // Corrected to internal DB id
+        caId = parentUser.id;
 
-        console.log(`[TEAM INVITE] Invoker ID: ${caId}, Role: ${parentUser.role}, Setup: ${parentUser.setup_completed}, Firm Setup: ${parentUser.is_firm_setup_complete}`);
-
-        // Check if firm setup is complete.
-        // It allows 'owner' or 'ca' roles.
         if (!parentUser.setup_completed && !parentUser.is_firm_setup_complete && !parentUser.firm_id) {
             return res.status(400).json({
                 success: false,
@@ -89,7 +85,6 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
-        // Ensure phone is explicitly prioritized based on new frontend changes
         const contactMobile = phone || mobile;
 
         if (!name || !email || !contactMobile || !role) {
@@ -116,37 +111,28 @@ const inviteStaffMember = async (req, res) => {
             });
         }
 
-        const existingPhoneUser = await User.findOne({ where: { phone: contactMobile } });
-        if (existingPhoneUser) {
-            return res.status(400).json({
-                success: false,
-                message: 'User with this mobile already exists'
-            });
-        }
-
+        // 🔥 THE FIX: Save to Invitation Table instead of User Table 🔥
         const crypto = require('crypto');
-        const invite_token = crypto.randomBytes(32).toString('hex');
-
+        const invite_token = crypto.randomUUID();
         const invite_expiry = new Date();
-        invite_expiry.setHours(invite_expiry.getHours() + 48); // 24 hours validity
+        invite_expiry.setHours(invite_expiry.getHours() + 48); // 48 hours validity
 
-        const newUser = await User.create({
-            name,
+        const newInvitation = await Invitation.create({
+            token: invite_token,
             email,
             phone: contactMobile,
             role,
-            parent_ca_id: caId,
-            invite_status: 'invited',
-            password: null,
-            invite_token,
-            invite_expiry
+            assigned_clients_json: Array.isArray(assigned_client_ids) ? JSON.stringify(assigned_client_ids) : '[]',
+            expires_at: invite_expiry,
+            ca_id: caId,
+            firm_name: parentUser.name || 'VyaparOS',
+            status: 'pending'
         });
 
         const inviteUrl = `https://vyaparos-frontend.vercel.app/invite?token=${invite_token}`;
 
         console.log("Sending invite to:", email);
 
-        // FIX: Passing all 5 parameters for the email service
         await sendInviteEmail(
             email,
             name,
@@ -155,13 +141,8 @@ const inviteStaffMember = async (req, res) => {
             inviteUrl
         );
 
-        if (assigned_client_ids && Array.isArray(assigned_client_ids) && assigned_client_ids.length > 0) {
-            const newAssignments = assigned_client_ids.map(bId => ({
-                staff_id: newUser.id,
-                business_id: bId
-            }));
-            await StaffClientAssignment.bulkCreate(newAssignments);
-        }
+        // Note: StaffClientAssignment is removed from here because 
+        // it is handled properly in invitationController when staff ACCEPTS the invite.
 
         res.status(200).json({
             success: true,
