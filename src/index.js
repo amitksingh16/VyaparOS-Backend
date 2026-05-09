@@ -81,7 +81,7 @@ const startServer = async () => {
 
         // 🔥 CRITICAL: Force Sync temporarily to wipe data
         console.log('[DB] SYNC: Wiping and recreating tables...');
-        await sequelize.sync({ force: true });
+        await sequelize.sync({ alter: true });
 
         const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running on port ${PORT}`);
