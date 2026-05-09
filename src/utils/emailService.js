@@ -52,4 +52,7 @@ const sendInviteEmail = async (toEmail, staffName, firmName, role, setupLink) =>
     }
 };
 
-module.exports = { sendInviteEmail };
+module.exports = {
+    sendInvitationEmail,
+    sendInviteEmail: sendInvitationEmail
+};
