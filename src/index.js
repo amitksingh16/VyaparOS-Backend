@@ -61,17 +61,41 @@ app.use('/api/onboarding', onboardingRoutes);
 
 const cron = require('node-cron');
 const { runDailyReminders } = require('./utils/reminderEngine');
+const { User, Invitation } = require('./models'); // Models import kar liye
+const { Op } = require('sequelize');
 
-app.get('/', (req, res) => {
-    res.send('Backend is Alive and Healthy');
-});
-
-// Reminder System
+// Intelligent Reminder & Auto-Cleanup System: Run daily at midnight
 cron.schedule('0 0 * * *', async () => {
-    console.log('[CRON] Executing scheduled daily reminder engine...');
-    await runDailyReminders();
-});
+    console.log('[CRON] Executing scheduled daily engine...');
 
+    // 1. Send Reminders
+    await runDailyReminders();
+
+    // 2. Auto-Cleanup Expired Invitations & Invited Users
+    try {
+        console.log('[CRON] Cleaning up expired invitations...');
+        const now = new Date();
+
+        // Expired invitations delete karo
+        await Invitation.destroy({
+            where: {
+                status: 'pending',
+                expires_at: { [Op.lt]: now } // Jo aaj ki date se chote hain (expire ho gaye)
+            }
+        });
+
+        // Wo staff data delete karo jo verify nahi hue aur expire ho gaye
+        await User.destroy({
+            where: {
+                invite_status: 'invited',
+                invite_expiry: { [Op.lt]: now }
+            }
+        });
+        console.log('[CRON] Cleanup successful. CA can now resend invites.');
+    } catch (err) {
+        console.error('[CRON] Cleanup failed:', err);
+    }
+});
 const startServer = async () => {
     try {
         const { sequelize, databaseStorage } = require('./config/db');

@@ -66,7 +66,7 @@ const sendInvitation = async (req, res) => {
             }
 
             const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 24);
+            expiresAt.setHours(expiresAt.getHours() + 48);
 
             invitation = await Invitation.create({
                 token: crypto.randomUUID(),

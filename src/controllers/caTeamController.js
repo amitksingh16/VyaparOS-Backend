@@ -128,7 +128,7 @@ const inviteStaffMember = async (req, res) => {
         const invite_token = crypto.randomBytes(32).toString('hex');
 
         const invite_expiry = new Date();
-        invite_expiry.setHours(invite_expiry.getHours() + 24); // 24 hours validity
+        invite_expiry.setHours(invite_expiry.getHours() + 48); // 24 hours validity
 
         const newUser = await User.create({
             name,
