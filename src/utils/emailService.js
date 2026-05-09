@@ -15,7 +15,6 @@ const sendInviteEmail = async (toEmail, staffName, firmName, role, setupLink) =>
         }
 
         const roleName = role === 'ca_staff' ? 'Senior Staff' : 'Article Assistant';
-
         console.log(`🚀 Resend Engine: Preparing to send invite to ${toEmail}`);
 
         const { data, error } = await resend.emails.send({
@@ -53,6 +52,6 @@ const sendInviteEmail = async (toEmail, staffName, firmName, role, setupLink) =>
 };
 
 module.exports = {
-    sendInvitationEmail,
-    sendInviteEmail: sendInvitationEmail
+    sendInviteEmail,
+    sendInvitationEmail: sendInviteEmail
 };
