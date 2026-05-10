@@ -784,6 +784,88 @@ const setupCA = async (req, res) => {
     }
 };
 
+const bulkMarkFiledClients = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const userRole = req.user.role;
+        const { clientIds } = req.body;
+
+        if (!clientIds || !Array.isArray(clientIds) || clientIds.length === 0) {
+            return res.status(400).json({ message: 'Invalid or missing client IDs' });
+        }
+
+        let verifiedClientIds = [];
+
+        if (userRole === 'ca' || userRole === 'admin') {
+            const caClients = await CAClient.findAll({
+                where: {
+                    ca_id: userId,
+                    business_id: { [Op.in]: clientIds },
+                    status: 'active'
+                }
+            });
+            verifiedClientIds = caClients.map(c => c.business_id);
+        } else if (userRole === 'ca_staff' || userRole === 'ca_article' || userRole === 'staff') {
+            const assignments = await StaffClientAssignment.findAll({
+                where: {
+                    staff_id: userId,
+                    business_id: { [Op.in]: clientIds }
+                }
+            });
+            verifiedClientIds = assignments.map(c => c.business_id);
+        } else {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        if (verifiedClientIds.length === 0) {
+            return res.status(400).json({ message: 'No authorized clients found to update' });
+        }
+
+        const itemsToUpdate = await ComplianceItem.findAll({
+            where: {
+                business_id: { [Op.in]: verifiedClientIds },
+                status: { [Op.in]: ['pending', 'upcoming', 'overdue'] }
+            }
+        });
+
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 31);
+        let updatedCount = 0;
+
+        for (const compliance of itemsToUpdate) {
+            const dueDate = new Date(compliance.due_date);
+            if (dueDate <= nextMonth) {
+                compliance.status = 'filed';
+                compliance.filed_date = now;
+                await compliance.save();
+                updatedCount++;
+
+                const fType = compliance.compliance_type.toUpperCase() === 'GSTR3B' ? 'GSTR-3B' :
+                    compliance.compliance_type.toUpperCase() === 'GSTR1' ? 'GSTR-1' :
+                        compliance.compliance_type.toUpperCase();
+
+                await ActivityLog.create({
+                    client_id: compliance.business_id,
+                    performed_by: userId,
+                    event_type: 'COMPLIANCE_MARKED_FILED',
+                    event_reference: compliance.id,
+                    description: `${fType} marked as filed via bulk action`,
+                    metadata: {
+                        compliance_type: compliance.compliance_type,
+                        frequency: compliance.frequency,
+                        bulk: true
+                    }
+                });
+            }
+        }
+
+        res.json({ message: 'Clients compliances marked as filed successfully', updatedCount });
+    } catch (err) {
+        console.error('Error handling bulk mark filed:', err);
+        res.status(500).json({ message: 'Server error handling bulk mark filed' });
+    }
+};
+
 module.exports = {
     getCADashboard,
     addClient,
@@ -794,5 +876,6 @@ module.exports = {
     triggerReminders,
     getEscalations,
     bulkAssignClients,
-    setupCA
+    setupCA,
+    bulkMarkFiledClients
 };
